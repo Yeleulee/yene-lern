@@ -1,87 +1,38 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
-import { AlertTriangle } from 'lucide-react';
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
-  const location = useLocation();
-  const { login, loginWithGoogle, loading, user } = useAuth();
+  const { login, loginWithGoogle, loading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [authInProgress, setAuthInProgress] = useState(false);
-  const [showDeploymentNotice, setShowDeploymentNotice] = useState(false);
-
-  // Redirect if user is already logged in
-  useEffect(() => {
-    if (user) {
-      // If user came from a specific page, redirect back to it
-      const from = (location.state as any)?.from?.pathname || '/dashboard';
-      navigate(from, { replace: true });
-    }
-
-    // Check if we're in a deployed environment and show deployment notice
-    if (window.location.hostname !== 'localhost') {
-      setShowDeploymentNotice(true);
-    }
-  }, [user, navigate, location]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setAuthInProgress(true);
     
     try {
       await login(email, password);
-      // Navigation happens in the useEffect when user state changes
-    } catch (err: any) {
-      // More descriptive error messages
-      if (err.message?.includes('auth/wrong-password') || 
-          err.message?.includes('auth/user-not-found')) {
-        setError('Invalid email or password. Please try again.');
-      } else if (err.message?.includes('auth/too-many-requests')) {
-        setError('Too many failed attempts. Please try again later or reset your password.');
-      } else if (err.message?.includes('auth/network-request-failed')) {
-        setError('Network error. Please check your internet connection and try again.');
-      } else {
-        setError(err.message || 'Login failed. Please try again.');
-      }
-      console.error('Login error details:', err);
-    } finally {
-      setAuthInProgress(false);
+      navigate('/dashboard');
+    } catch (err) {
+      setError('Invalid email or password');
     }
   };
 
   const handleGoogleLogin = async () => {
     setError('');
-    setAuthInProgress(true);
     
     try {
       await loginWithGoogle();
-      // Navigation happens in the useEffect when user state changes
-    } catch (err: any) {
-      if (err.message?.includes('popup-blocked')) {
-        setError('Popup was blocked by your browser. Please allow popups for this site and try again.');
-      } else if (err.message?.includes('popup-closed-by-user')) {
-        setError('Login was canceled. Please try again.');
-      } else if (err.message?.includes('auth/network-request-failed')) {
-        setError('Network error. Please check your internet connection and try again.');
-      } else if (err.message?.includes('This domain isn\'t authorized')) {
-        setError('Authentication domain not authorized. Please use email sign-in instead.');
-      } else {
-        setError(err.message || 'Google login failed. Please try again.');
-      }
-      console.error('Google login error details:', err);
-    } finally {
-      setAuthInProgress(false);
+      navigate('/dashboard');
+    } catch (err) {
+      setError('Google login failed. Please try again.');
     }
   };
-
-  // If login is in progress, show loading
-  const isLoading = loading || authInProgress;
 
   return (
     <div className="min-h-[calc(100vh-64px)] flex items-center justify-center bg-gray-50 py-12 px-4">
@@ -90,15 +41,6 @@ export const LoginPage: React.FC = () => {
           <h1 className="text-3xl font-bold">Welcome Back</h1>
           <p className="mt-2 text-gray-600">Log in to continue your learning journey</p>
         </div>
-        
-        {showDeploymentNotice && (
-          <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 text-yellow-800 mb-4">
-            <div className="flex items-center">
-              <AlertTriangle size={20} className="mr-2" />
-              <p>Demo version - use email: <strong>demo@example.com</strong> password: <strong>password123</strong></p>
-            </div>
-          </div>
-        )}
         
         {error && (
           <div className="bg-red-50 border-l-4 border-red-500 p-4 text-red-700">
@@ -116,7 +58,6 @@ export const LoginPage: React.FC = () => {
             label="Email Address"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            disabled={isLoading}
           />
           
           <Input
@@ -128,10 +69,9 @@ export const LoginPage: React.FC = () => {
             label="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            disabled={isLoading}
           />
           
-          <Button type="submit" className="w-full" isLoading={isLoading} disabled={isLoading}>
+          <Button type="submit" className="w-full" isLoading={loading}>
             Log In
           </Button>
           
@@ -149,8 +89,7 @@ export const LoginPage: React.FC = () => {
             variant="outline" 
             className="w-full flex items-center justify-center gap-2"
             onClick={handleGoogleLogin}
-            isLoading={isLoading}
-            disabled={isLoading || showDeploymentNotice}
+            isLoading={loading}
           >
             <svg viewBox="0 0 24 24" width="24" height="24" xmlns="http://www.w3.org/2000/svg">
               <g transform="matrix(1, 0, 0, 1, 27.009001, -39.238998)">
@@ -163,19 +102,7 @@ export const LoginPage: React.FC = () => {
             Sign in with Google
           </Button>
           
-          {showDeploymentNotice && (
-            <p className="text-xs text-center text-gray-500 mt-2">
-              Google Sign-In may not work in this demo environment.
-              <br />Please use the provided test credentials instead.
-            </p>
-          )}
-          
           <div className="text-center mt-4">
-            <div className="text-sm text-gray-600 mb-2">
-              <Link to="/forgot-password" className="font-medium text-primary-600 hover:text-primary-500">
-                Forgot your password?
-              </Link>
-            </div>
             <p className="text-sm text-gray-600">
               Don't have an account?{' '}
               <Link to="/signup" className="font-medium text-primary-600 hover:text-primary-500">
@@ -191,25 +118,11 @@ export const LoginPage: React.FC = () => {
 
 export const SignupPage: React.FC = () => {
   const navigate = useNavigate();
-  const { register, loginWithGoogle, loading, user } = useAuth();
+  const { register, loginWithGoogle, loading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
-  const [authInProgress, setAuthInProgress] = useState(false);
-  const [showDeploymentNotice, setShowDeploymentNotice] = useState(false);
-
-  // Redirect if user is already logged in
-  useEffect(() => {
-    if (user) {
-      navigate('/dashboard', { replace: true });
-    }
-
-    // Check if we're in a deployed environment and show deployment notice
-    if (window.location.hostname !== 'localhost') {
-      setShowDeploymentNotice(true);
-    }
-  }, [user, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -220,58 +133,24 @@ export const SignupPage: React.FC = () => {
       return;
     }
     
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters long');
-      return;
-    }
-    
-    setAuthInProgress(true);
     try {
       await register(email, password);
-      // Navigation happens in the useEffect when user state changes
-    } catch (err: any) {
-      if (err.message?.includes('auth/email-already-in-use')) {
-        setError('This email is already registered. Please log in or use a different email.');
-      } else if (err.message?.includes('auth/invalid-email')) {
-        setError('Please enter a valid email address.');
-      } else if (err.message?.includes('auth/network-request-failed')) {
-        setError('Network error. Please check your internet connection and try again.');
-      } else {
-        setError(err.message || 'Registration failed. Please try again.');
-      }
-      console.error('Registration error details:', err);
-    } finally {
-      setAuthInProgress(false);
+      navigate('/dashboard');
+    } catch (err) {
+      setError('Failed to create an account');
     }
   };
 
   const handleGoogleSignup = async () => {
     setError('');
-    setAuthInProgress(true);
     
     try {
       await loginWithGoogle();
-      // Navigation happens in the useEffect when user state changes
-    } catch (err: any) {
-      if (err.message?.includes('popup-blocked')) {
-        setError('Popup was blocked by your browser. Please allow popups for this site and try again.');
-      } else if (err.message?.includes('popup-closed-by-user')) {
-        setError('Sign-up was canceled. Please try again.');
-      } else if (err.message?.includes('auth/network-request-failed')) {
-        setError('Network error. Please check your internet connection and try again.');
-      } else if (err.message?.includes('This domain isn\'t authorized')) {
-        setError('Authentication domain not authorized. Please use email sign-up instead.');
-      } else {
-        setError(err.message || 'Google sign-up failed. Please try again.');
-      }
-      console.error('Google signup error details:', err);
-    } finally {
-      setAuthInProgress(false);
+      navigate('/dashboard');
+    } catch (err) {
+      setError('Google sign-up failed. Please try again.');
     }
   };
-
-  // If signup is in progress, show loading
-  const isLoading = loading || authInProgress;
 
   return (
     <div className="min-h-[calc(100vh-64px)] flex items-center justify-center bg-gray-50 py-12 px-4">
@@ -280,15 +159,6 @@ export const SignupPage: React.FC = () => {
           <h1 className="text-3xl font-bold">Create Account</h1>
           <p className="mt-2 text-gray-600">Start your learning journey today</p>
         </div>
-        
-        {showDeploymentNotice && (
-          <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 text-yellow-800 mb-4">
-            <div className="flex items-center">
-              <AlertTriangle size={20} className="mr-2" />
-              <p>Demo mode - create an account with your email or use the demo account</p>
-            </div>
-          </div>
-        )}
         
         {error && (
           <div className="bg-red-50 border-l-4 border-red-500 p-4 text-red-700">
@@ -306,7 +176,6 @@ export const SignupPage: React.FC = () => {
             label="Email Address"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            disabled={isLoading}
           />
           
           <Input
@@ -318,7 +187,6 @@ export const SignupPage: React.FC = () => {
             label="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            disabled={isLoading}
           />
           
           <Input
@@ -330,10 +198,9 @@ export const SignupPage: React.FC = () => {
             label="Confirm Password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
-            disabled={isLoading}
           />
           
-          <Button type="submit" className="w-full" isLoading={isLoading} disabled={isLoading}>
+          <Button type="submit" className="w-full" isLoading={loading}>
             Create Account
           </Button>
           
@@ -351,8 +218,7 @@ export const SignupPage: React.FC = () => {
             variant="outline" 
             className="w-full flex items-center justify-center gap-2"
             onClick={handleGoogleSignup}
-            isLoading={isLoading}
-            disabled={isLoading || showDeploymentNotice}
+            isLoading={loading}
           >
             <svg viewBox="0 0 24 24" width="24" height="24" xmlns="http://www.w3.org/2000/svg">
               <g transform="matrix(1, 0, 0, 1, 27.009001, -39.238998)">
@@ -364,13 +230,6 @@ export const SignupPage: React.FC = () => {
             </svg>
             Sign up with Google
           </Button>
-          
-          {showDeploymentNotice && (
-            <p className="text-xs text-center text-gray-500 mt-2">
-              Google Sign-Up may not work in this demo environment.
-              <br />Please use email sign-up instead.
-            </p>
-          )}
           
           <div className="text-center mt-4">
             <p className="text-sm text-gray-600">

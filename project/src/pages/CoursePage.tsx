@@ -10,8 +10,7 @@ import {
   Share, 
   ChevronRight,
   BarChart,
-  Brain,
-  AlertCircle
+  Brain
 } from 'lucide-react';
 import Button from '../components/ui/Button';
 import { useAuth } from '../context/AuthContext';
@@ -19,7 +18,6 @@ import { useLearning } from '../context/LearningContext';
 import { getVideoDetails, getVideoStats } from '../services/youtubeService';
 import { generateVideoSummary } from '../services/geminiService';
 import { Video } from '../types';
-import { getCourseSectionByVideoId } from '../data/mockCourseData';
 
 const CourseDetail: React.FC = () => {
   const { videoId = '' } = useParams<{ videoId: string }>();
@@ -32,7 +30,6 @@ const CourseDetail: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [summary, setSummary] = useState('');
   const [activeTab, setActiveTab] = useState('summary');
-  const [error, setError] = useState<string | null>(null);
   
   const userVideo = user ? getVideoById(videoId) : undefined;
   const isVideoSaved = !!userVideo;
@@ -40,15 +37,7 @@ const CourseDetail: React.FC = () => {
   useEffect(() => {
     async function loadCourseData() {
       setIsLoading(true);
-      setError(null);
-      
       try {
-        // Check if this is a valid course video
-        const courseData = getCourseSectionByVideoId(videoId);
-        if (!courseData) {
-          console.warn(`Video ID ${videoId} is not part of any course`);
-        }
-        
         // Get video details
         const videoDetails = await getVideoDetails(videoId);
         if (videoDetails) {
@@ -66,23 +55,15 @@ const CourseDetail: React.FC = () => {
             videoDetails.description
           );
           setSummary(summaryData.summary);
-        } else {
-          setError('Unable to load video details. The video may be unavailable.');
         }
       } catch (error) {
         console.error('Error loading video details:', error);
-        setError('An error occurred while loading course details. Please try again later.');
       } finally {
         setIsLoading(false);
       }
     }
 
-    if (videoId) {
-      loadCourseData();
-    } else {
-      setError('Invalid video ID');
-      setIsLoading(false);
-    }
+    loadCourseData();
   }, [videoId]);
 
   const handleSaveToCourse = async () => {
@@ -94,13 +75,7 @@ const CourseDetail: React.FC = () => {
   };
 
   const handleStartCourse = () => {
-    // Verify the video is still available before navigating
-    const courseData = getCourseSectionByVideoId(videoId);
-    if (courseData) {
-      navigate(`/video/${videoId}`);
-    } else {
-      setError('This course is not available at the moment. Please try another course.');
-    }
+    navigate(`/video/${videoId}`);
   };
 
   if (isLoading) {
@@ -123,33 +98,12 @@ const CourseDetail: React.FC = () => {
     );
   }
 
-  if (error) {
-    return (
-      <div className="container mx-auto px-4 py-16 text-center">
-        <div className="max-w-md mx-auto bg-white rounded-xl shadow-md p-8">
-          <div className="flex justify-center mb-4">
-            <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center">
-              <AlertCircle size={32} className="text-red-600" />
-            </div>
-          </div>
-          <h2 className="text-2xl font-bold mb-2">Course Error</h2>
-          <p className="text-gray-600 mb-6">{error}</p>
-          <Link to="/explore">
-            <Button>Explore Other Courses</Button>
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
   if (!video) {
     return (
       <div className="container mx-auto px-4 py-8 text-center">
         <h2 className="text-2xl font-bold mb-4">Course not found</h2>
         <p className="text-gray-600 mb-4">The course you're looking for doesn't exist or is unavailable.</p>
-        <Link to="/explore">
-          <Button>Back to Explore</Button>
-        </Link>
+        <Button as="a" href="/explore">Back to Explore</Button>
       </div>
     );
   }

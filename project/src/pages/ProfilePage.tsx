@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLearning } from '../context/LearningContext';
 import { useLearningStats } from '../context/LearningStatsContext';
-import { ArrowUp, Award, Clock, CheckCircle, TrendingUp, Users, Brain, Calendar } from 'lucide-react';
+import { ArrowUp, Award, Clock, CheckCircle, TrendingUp, Users, Brain } from 'lucide-react';
 import Button from '../components/ui/Button';
 
 interface LeaderboardUser {
@@ -62,32 +61,19 @@ const ProfilePage: React.FC = () => {
     isImproving, 
     fasterLearners,
     refreshStats,
-    loading,
-    totalLearningTime,
-    activityData,
-    completionRate,
-    averageTimePerVideo
+    loading
   } = useLearningStats();
   const [activeTab, setActiveTab] = useState<'profile' | 'stats' | 'leaderboard'>('profile');
 
   // Calculate user stats
   const completedVideos = userVideos.filter(v => v.status === 'completed').length;
   const inProgressVideos = userVideos.filter(v => v.status === 'in-progress').length;
+  const totalLearningTime = userVideos.reduce((total, video) => total + (video.progress || 0), 0);
   
   // Refresh stats when component mounts
   useEffect(() => {
-    if (user) {
-      refreshStats();
-    }
-  }, [user]);
-
-  // Date formatter
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric' 
-    });
-  };
+    refreshStats();
+  }, []);
 
   if (!user) {
     return (
@@ -95,20 +81,12 @@ const ProfilePage: React.FC = () => {
         <h1 className="text-3xl font-bold mb-4">Profile</h1>
         <p className="text-gray-600 mb-8">Please sign in to view your profile.</p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-          <Link to="/login">
-            <Button>Login</Button>
-          </Link>
-          <Link to="/signup">
-            <Button variant="outline">Sign Up</Button>
-          </Link>
+          <Button>Login</Button>
+          <Button variant="outline">Sign Up</Button>
         </div>
       </div>
     );
   }
-
-  // Generate account creation date - in a real app this would come from Firebase
-  const accountCreationDate = new Date();
-  accountCreationDate.setMonth(accountCreationDate.getMonth() - 2); // Simulate account created 2 months ago
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -123,7 +101,7 @@ const ProfilePage: React.FC = () => {
           
           <div className="flex-1 text-center md:text-left">
             <h1 className="text-3xl font-bold mb-2">{user.displayName || user.email}</h1>
-            <p className="text-blue-100 mb-4">Member since {accountCreationDate.toLocaleDateString()}</p>
+            <p className="text-blue-100 mb-4">Member since {new Date().toLocaleDateString()}</p>
             
             <div className="flex flex-wrap justify-center md:justify-start gap-3 mt-4">
               <div className="bg-white/10 rounded-lg px-4 py-2 backdrop-blur-sm">
@@ -191,7 +169,7 @@ const ProfilePage: React.FC = () => {
               <p className="text-gray-600 mb-4">
                 {user.learningPreferences ? 
                   `Interested in: ${user.learningPreferences.join(', ')}` : 
-                  `${user.displayName || 'You'} is learning through video tutorials and focused courses. Connect your learning preferences to customize your experience.`}
+                  'Tell us about your learning interests and goals...'}
               </p>
               <Button variant="outline" size="sm">Edit Profile</Button>
             </div>
@@ -222,7 +200,7 @@ const ProfilePage: React.FC = () => {
                       <p className="text-sm text-gray-600">Total hours spent learning</p>
                     </div>
                   </div>
-                  <span className="text-2xl font-bold">{Math.round(totalLearningTime / 3600)} hrs</span>
+                  <span className="text-2xl font-bold">{Math.round(totalLearningTime / 60)} hrs</span>
                 </div>
                 
                 <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
@@ -269,7 +247,7 @@ const ProfilePage: React.FC = () => {
                   </div>
                   <div className="mt-4 pt-4 border-t border-gray-100">
                     <p className="text-sm text-gray-600">
-                      Complete {fasterLearners[0]?.completedVideos - completedVideos || 5} more videos to overtake the next person!
+                      Complete {fasterLearners[0].completedVideos - completedVideos} more videos to overtake the next person!
                     </p>
                   </div>
                 </div>
@@ -288,15 +266,10 @@ const ProfilePage: React.FC = () => {
               <h2 className="text-xl font-bold mb-4">Learning Goals</h2>
               <div className="space-y-4">
                 <div className="w-full bg-gray-200 rounded-full h-2.5">
-                  <div 
-                    className="bg-blue-600 h-2.5 rounded-full" 
-                    style={{ width: `${Math.min(completedVideos * 10, 100)}%` }}
-                  ></div>
+                  <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: '70%' }}></div>
                 </div>
                 <p className="text-sm text-gray-600">
-                  {completedVideos >= 10 
-                    ? 'You\'ve reached your monthly goal! Set a new target.' 
-                    : `Complete ${10 - completedVideos} more videos to reach your monthly goal`}
+                  Complete 10 more videos to reach your monthly goal
                 </p>
                 <Button variant="primary" className="w-full">Set New Goal</Button>
               </div>
@@ -329,7 +302,9 @@ const ProfilePage: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="text-gray-500 text-sm">Completion Rate</h3>
-                  <p className="text-2xl font-bold">{completionRate}%</p>
+                  <p className="text-2xl font-bold">
+                    {userVideos.length ? Math.round((completedVideos / userVideos.length) * 100) : 0}%
+                  </p>
                 </div>
               </div>
             </div>
@@ -353,7 +328,9 @@ const ProfilePage: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="text-gray-500 text-sm">Avg. Time/Video</h3>
-                  <p className="text-2xl font-bold">{averageTimePerVideo} min</p>
+                  <p className="text-2xl font-bold">
+                    {completedVideos ? Math.round((totalLearningTime / completedVideos) / 60) : 0} min
+                  </p>
                 </div>
               </div>
             </div>
@@ -361,39 +338,8 @@ const ProfilePage: React.FC = () => {
           
           <div className="border-t border-gray-100 pt-6">
             <h3 className="text-lg font-bold mb-4">Learning Activity</h3>
-            <div className="h-64 bg-gray-50 rounded-xl p-4">
-              {/* Activity Chart */}
-              <div className="h-full flex flex-col">
-                <div className="flex-1 flex items-end">
-                  {activityData.map((day, index) => (
-                    <div key={index} className="flex-1 flex flex-col items-center justify-end">
-                      <div 
-                        className="w-6 bg-blue-500 rounded-t-md" 
-                        style={{ 
-                          height: `${Math.min(day.minutes * 2, 100)}%`,
-                          opacity: day.minutes > 0 ? 1 : 0.2
-                        }}
-                      ></div>
-                    </div>
-                  ))}
-                </div>
-                <div className="h-6 mt-2 flex border-t border-gray-200 pt-1">
-                  {activityData.map((day, index) => (
-                    <div key={index} className="flex-1 text-xs text-center text-gray-500">
-                      {formatDate(day.date)}
-                    </div>
-                  ))}
-                </div>
-                <div className="flex justify-between mt-2">
-                  <div className="text-xs text-gray-500 flex items-center gap-1">
-                    <Calendar size={12} />
-                    <span>Last 7 days</span>
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    {activityData.reduce((total, day) => total + day.minutes, 0)} total minutes
-                  </div>
-                </div>
-              </div>
+            <div className="h-64 bg-gray-50 rounded-xl flex items-center justify-center">
+              <p className="text-gray-500">Learning activity chart will be displayed here</p>
             </div>
           </div>
         </div>

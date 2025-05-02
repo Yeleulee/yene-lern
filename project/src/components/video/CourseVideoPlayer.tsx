@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CheckCircle, AlertCircle } from 'lucide-react';
+import { CheckCircle } from 'lucide-react';
 import { getCourseSectionByVideoId, getNextSection } from '../../data/mockCourseData';
 
 interface CourseVideoPlayerProps {
@@ -10,9 +10,6 @@ interface CourseVideoPlayerProps {
 const CourseVideoPlayer: React.FC<CourseVideoPlayerProps> = ({ videoId }) => {
   const navigate = useNavigate();
   const [autoPlay, setAutoPlay] = useState(false);
-  const [videoError, setVideoError] = useState<string | null>(null);
-  const [isVideoLoaded, setIsVideoLoaded] = useState(false);
-  const iframeRef = useRef<HTMLIFrameElement>(null);
   const [currentCourseData, setCurrentCourseData] = useState<{
     courseId: string;
     title: string;
@@ -22,21 +19,11 @@ const CourseVideoPlayer: React.FC<CourseVideoPlayerProps> = ({ videoId }) => {
   } | null>(null);
   
   useEffect(() => {
-    console.log(`Loading course video with ID: ${videoId}`);
     // Find the course and section for this video
     const data = getCourseSectionByVideoId(videoId);
     
     if (data) {
       const { course, section } = data;
-      console.log(`Found course: ${course.title}, section: ${section.title}`);
-      
-      // Verify this is a valid video ID
-      if (section.videoId !== videoId) {
-        console.error(`Video ID mismatch: expected ${section.videoId}, got ${videoId}`);
-        setVideoError('Invalid video ID. The requested video does not match the course content.');
-        return;
-      }
-      
       const currentIndex = course.sections.findIndex(s => s.id === section.id);
       
       // Update all sections to set the current one
@@ -52,27 +39,8 @@ const CourseVideoPlayer: React.FC<CourseVideoPlayerProps> = ({ videoId }) => {
         currentSection: section,
         currentIndex
       });
-      
-      // Clear any previous errors
-      setVideoError(null);
-      // Reset video loaded state
-      setIsVideoLoaded(false);
-    } else {
-      console.error(`No course found for video ID: ${videoId}`);
-      setVideoError('Video not found in any course.');
     }
   }, [videoId]);
-
-  // Handle video loading events
-  const handleIframeLoad = () => {
-    console.log('Video iframe loaded');
-    setIsVideoLoaded(true);
-  };
-  
-  const handleIframeError = () => {
-    console.error('Video iframe failed to load');
-    setVideoError('Failed to load the video. Please try again later.');
-  };
   
   const handleAutoPlayToggle = () => {
     setAutoPlay(!autoPlay);
@@ -102,43 +70,6 @@ const CourseVideoPlayer: React.FC<CourseVideoPlayerProps> = ({ videoId }) => {
     }
   };
 
-  // If in a course but still loading
-  if (!isVideoLoaded && currentCourseData) {
-    return (
-      <div className="flex flex-col md:h-[calc(100vh-64px)] h-screen">
-        <div className="flex-1 flex items-center justify-center bg-gray-800">
-          <div className="text-white text-center">
-            <div className="animate-spin mb-4 mx-auto h-10 w-10 border-4 border-t-blue-500 border-blue-200 rounded-full"></div>
-            <p>Loading course video...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Display an error message if the video can't be found or loaded
-  if (videoError) {
-    return (
-      <div className="flex flex-col items-center justify-center h-screen bg-gray-100 p-6">
-        <div className="bg-white rounded-xl shadow-md p-8 max-w-md text-center">
-          <div className="flex justify-center mb-4">
-            <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center">
-              <AlertCircle size={32} className="text-red-600" />
-            </div>
-          </div>
-          <h2 className="text-2xl font-bold mb-2">Video Error</h2>
-          <p className="text-gray-600 mb-6">{videoError}</p>
-          <button 
-            onClick={() => navigate('/my-learning')}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-md font-medium"
-          >
-            Go to My Learning
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   if (!currentCourseData) {
     return (
       <div className="aspect-video w-full bg-black">
@@ -148,9 +79,6 @@ const CourseVideoPlayer: React.FC<CourseVideoPlayerProps> = ({ videoId }) => {
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           allowFullScreen
           className="w-full h-full"
-          onLoad={handleIframeLoad}
-          onError={handleIframeError}
-          ref={iframeRef}
         ></iframe>
       </div>
     );
@@ -234,9 +162,6 @@ const CourseVideoPlayer: React.FC<CourseVideoPlayerProps> = ({ videoId }) => {
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
               className="w-full h-full"
-              onLoad={handleIframeLoad}
-              onError={handleIframeError}
-              ref={iframeRef}
             ></iframe>
           </div>
           <div className="p-3 md:p-6 bg-white">

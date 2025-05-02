@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
-import { MessageSquareText, ChevronRight, AlertCircle } from 'lucide-react';
+import { useParams } from 'react-router-dom';
+import { MessageSquareText, ChevronRight } from 'lucide-react';
 import VideoPlayer from '../components/video/VideoPlayer';
 import CourseVideoPlayer from '../components/video/CourseVideoPlayer';
 import VideoSummaryCard from '../components/video/VideoSummaryCard';
@@ -17,7 +17,6 @@ import { getCourseSectionByVideoId } from '../data/mockCourseData';
 
 const VideoPage: React.FC = () => {
   const { videoId = '' } = useParams<{ videoId: string }>();
-  const navigate = useNavigate();
   const { user } = useAuth();
   const { getVideoById, addVideo, updateStatus } = useLearning();
   
@@ -28,7 +27,6 @@ const VideoPage: React.FC = () => {
   const [userQuestion, setUserQuestion] = useState('');
   const [isAskingQuestion, setIsAskingQuestion] = useState(false);
   const [isPartOfCourse, setIsPartOfCourse] = useState(false);
-  const [courseError, setCourseError] = useState<string | null>(null);
   
   const userVideo = user ? getVideoById(videoId) : undefined;
   const isVideoSaved = !!userVideo;
@@ -36,26 +34,11 @@ const VideoPage: React.FC = () => {
   useEffect(() => {
     async function loadVideoAndSummary() {
       setIsLoading(true);
-      setCourseError(null);
       try {
         // Check if this video is part of a course
         const courseData = getCourseSectionByVideoId(videoId);
+        setIsPartOfCourse(!!courseData);
         
-        if (courseData) {
-          const { course, section } = courseData;
-          
-          // Verify the video ID matches what's expected in the course
-          if (section.videoId !== videoId) {
-            setCourseError('The requested video does not match the expected course content.');
-            setIsPartOfCourse(false);
-          } else {
-            setIsPartOfCourse(true);
-          }
-        } else {
-          setIsPartOfCourse(false);
-        }
-        
-        // For both course and non-course videos, load the video details
         const videoDetails = await getVideoDetails(videoId);
         if (videoDetails) {
           setVideo(videoDetails);
@@ -76,9 +59,7 @@ const VideoPage: React.FC = () => {
       }
     }
 
-    if (videoId) {
-      loadVideoAndSummary();
-    }
+    loadVideoAndSummary();
   }, [videoId]);
 
   const handleSaveVideo = async () => {
@@ -137,39 +118,12 @@ const VideoPage: React.FC = () => {
       <div className="container mx-auto px-4 py-8 text-center">
         <h2 className="text-2xl font-bold mb-4">Video not found</h2>
         <p className="text-gray-600 mb-4">The video you're looking for doesn't exist or is unavailable.</p>
-        <Link to="/">
-          <Button>Back to Home</Button>
-        </Link>
+        <Button as="a" href="/">Back to Home</Button>
       </div>
     );
   }
 
-  // Display course error if there's an issue with the course video
-  if (courseError) {
-    return (
-      <div className="container mx-auto px-4 py-8 text-center">
-        <div className="max-w-md mx-auto bg-white rounded-xl shadow-md p-8">
-          <div className="flex justify-center mb-4">
-            <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center">
-              <AlertCircle size={32} className="text-red-600" />
-            </div>
-          </div>
-          <h2 className="text-2xl font-bold mb-2">Course Video Error</h2>
-          <p className="text-gray-600 mb-6">{courseError}</p>
-          <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 justify-center">
-            <Button onClick={() => navigate('/my-learning')}>
-              My Learning
-            </Button>
-            <Button variant="outline" onClick={() => navigate('/explore')}>
-              Explore Courses
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // For course videos, display the course video player
+  // For course videos, display the course video player in fullscreen mode
   if (isPartOfCourse) {
     return <CourseVideoPlayer videoId={videoId} />;
   }
@@ -250,16 +204,12 @@ const VideoPage: React.FC = () => {
               ) : (
                 <div className="space-y-3">
                   <p className="text-sm text-gray-500">Sign in to track your progress</p>
-                  <Link to="/login">
-                    <Button variant="outline" className="w-full">
-                      Login
-                    </Button>
-                  </Link>
-                  <Link to="/signup">
-                    <Button className="w-full">
-                      Sign Up
-                    </Button>
-                  </Link>
+                  <Button as="a" href="/login" variant="outline" className="w-full">
+                    Login
+                  </Button>
+                  <Button as="a" href="/signup" className="w-full">
+                    Sign Up
+                  </Button>
                 </div>
               )}
             </div>
