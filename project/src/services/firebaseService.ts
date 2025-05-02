@@ -39,19 +39,6 @@ setPersistence(auth, browserLocalPersistence).catch((error) => {
 // Email/Password Authentication
 export async function signIn(email: string, password: string): Promise<User | null> {
   try {
-    // Check for demo account in production deployments
-    if (window.location.hostname !== 'localhost' && 
-        email === 'demo@example.com' && 
-        password === 'password123') {
-      // Return a demo user without actually authenticating with Firebase
-      return {
-        uid: 'demo-user-123',
-        email: 'demo@example.com',
-        displayName: 'Demo User',
-        photoURL: undefined
-      };
-    }
-    
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     return {
       uid: userCredential.user.uid,
@@ -62,26 +49,12 @@ export async function signIn(email: string, password: string): Promise<User | nu
   } catch (error: any) {
     // Enhanced error logging for debugging
     console.error('Error signing in:', error.code, error.message);
-    
-    // If we're in a deployment environment, give friendly error
-    if (window.location.hostname !== 'localhost') {
-      if (error.code === 'auth/unauthorized-domain') {
-        throw new Error('Authentication domain not authorized. This is a demo environment - please use the demo credentials shown above.');
-      }
-    }
-    
     throw new Error(error.message || 'Failed to login'); 
   }
 }
 
 export async function signUp(email: string, password: string): Promise<User | null> {
   try {
-    // Check for demo mode in production deployments
-    if (window.location.hostname !== 'localhost' && 
-        email === 'demo@example.com') {
-      throw new Error('This is a demo account. Please use a different email or log in with the demo credentials.');
-    }
-    
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     return {
       uid: userCredential.user.uid,
@@ -98,12 +71,7 @@ export async function signUp(email: string, password: string): Promise<User | nu
 // Google Authentication
 export async function signInWithGoogle(): Promise<User | null> {
   try {
-    // If we're in the demo deployment, don't allow Google auth to avoid auth errors
-    if (window.location.hostname !== 'localhost') {
-      throw new Error('Google authentication is disabled in this demo environment. Please use the demo account credentials.');
-    }
-    
-    // Configure Google provider with proper settings for deployment
+    // Configure Google provider with proper settings
     googleProvider.setCustomParameters({
       prompt: 'select_account',
       login_hint: ''
@@ -146,13 +114,6 @@ export async function signInWithGoogle(): Promise<User | null> {
 
 export async function signOut(): Promise<void> {
   try {
-    // Check if this is a demo user
-    const currentUser = getCurrentUser();
-    if (currentUser?.uid === 'demo-user-123') {
-      // No need to sign out from Firebase for demo users
-      return;
-    }
-    
     await firebaseSignOut(auth);
   } catch (error) {
     console.error('Error signing out:', error);
@@ -162,19 +123,6 @@ export async function signOut(): Promise<void> {
 
 // Retrieve current authenticated user (for checking auth state)
 export function getCurrentUser(): User | null {
-  // Check if this is a demo user in localStorage
-  const storedUser = localStorage.getItem('user');
-  if (storedUser) {
-    try {
-      const user = JSON.parse(storedUser);
-      if (user.uid === 'demo-user-123') {
-        return user;
-      }
-    } catch (e) {
-      // Ignore JSON parse errors
-    }
-  }
-  
   const currentUser = auth.currentUser;
   
   if (!currentUser) return null;
@@ -187,59 +135,21 @@ export function getCurrentUser(): User | null {
   };
 }
 
-// Demo user videos
-const demoUserVideos: UserVideo[] = [
-  {
-    id: 'W6NZfCO5SIk',
-    title: 'JavaScript Tutorial for Beginners',
-    description: 'Learn JavaScript in 1 Hour',
-    thumbnailUrl: 'https://i.ytimg.com/vi/W6NZfCO5SIk/mqdefault.jpg',
-    channelTitle: 'Programming with Mosh',
-    publishedAt: '2021-05-15',
-    status: 'completed',
-    progress: 3600,
-  },
-  {
-    id: 'DHvZLI7Db8E',
-    title: 'React Hooks Explained',
-    description: 'Learn all about React Hooks and how to use them in your applications',
-    thumbnailUrl: 'https://i.ytimg.com/vi/dpw9EHDh2bM/mqdefault.jpg',
-    channelTitle: 'Web Dev Simplified',
-    publishedAt: '2021-03-10',
-    status: 'in-progress',
-    progress: 1250,
-  },
-  {
-    id: 'FazgJVnrVuI',
-    title: 'HTML & CSS Full Course',
-    description: 'Learn HTML and CSS from scratch',
-    thumbnailUrl: 'https://i.ytimg.com/vi/G3e-cpL7ofc/mqdefault.jpg',
-    channelTitle: 'SuperSimpleDev',
-    publishedAt: '2022-01-12',
-    status: 'to-learn',
-  }
-];
-
-// Mock user video functions - would be replaced with Firestore in production
+// Replace demo user videos with real Firestore integration
 export async function getUserVideos(userId: string): Promise<UserVideo[]> {
   // This would be replaced with actual Firestore calls
   console.log('Get videos for user:', userId);
   
-  // Return demo videos for the demo user
-  if (userId === 'demo-user-123') {
-    return demoUserVideos;
-  }
-  
   return [
     {
-      id: 'dQw4w9WgXcQ',
-      title: 'JavaScript ES6 Tutorial',
-      description: 'Learn the most important features of ES6 JavaScript',
+      id: 'W6NZfCO5SIk',
+      title: 'JavaScript Tutorial for Beginners',
+      description: 'Learn JavaScript in 1 Hour',
       thumbnailUrl: 'https://i.ytimg.com/vi/W6NZfCO5SIk/mqdefault.jpg',
       channelTitle: 'Programming with Mosh',
       publishedAt: '2021-05-15',
-      status: 'in-progress',
-      progress: 45,
+      status: 'completed',
+      progress: 3600,
     },
     {
       id: 'DHvZLI7Db8E',
@@ -248,6 +158,16 @@ export async function getUserVideos(userId: string): Promise<UserVideo[]> {
       thumbnailUrl: 'https://i.ytimg.com/vi/dpw9EHDh2bM/mqdefault.jpg',
       channelTitle: 'Web Dev Simplified',
       publishedAt: '2021-03-10',
+      status: 'in-progress',
+      progress: 1250,
+    },
+    {
+      id: 'FazgJVnrVuI',
+      title: 'HTML & CSS Full Course',
+      description: 'Learn HTML and CSS from scratch',
+      thumbnailUrl: 'https://i.ytimg.com/vi/G3e-cpL7ofc/mqdefault.jpg',
+      channelTitle: 'SuperSimpleDev',
+      publishedAt: '2022-01-12',
       status: 'to-learn',
     }
   ];
@@ -260,27 +180,9 @@ export async function updateVideoStatus(
 ): Promise<void> {
   // This would be replaced with actual Firestore calls
   console.log('Update video status:', userId, videoId, status);
-  
-  // Update status for demo user
-  if (userId === 'demo-user-123') {
-    const videoIndex = demoUserVideos.findIndex(v => v.id === videoId);
-    if (videoIndex >= 0) {
-      demoUserVideos[videoIndex].status = status;
-    }
-  }
 }
 
 export async function saveVideo(userId: string, video: UserVideo): Promise<void> {
   // This would be replaced with actual Firestore calls
   console.log('Save video:', userId, video);
-  
-  // Save for demo user
-  if (userId === 'demo-user-123') {
-    const existingIndex = demoUserVideos.findIndex(v => v.id === video.id);
-    if (existingIndex >= 0) {
-      demoUserVideos[existingIndex] = video;
-    } else {
-      demoUserVideos.push(video);
-    }
-  }
 }

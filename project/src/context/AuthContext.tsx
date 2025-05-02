@@ -27,25 +27,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Check authentication state on mount and when auth changes
   useEffect(() => {
-    // First, try to get the current Firebase authenticated user
+    // Get the current Firebase authenticated user
     const currentUser = getCurrentUser();
     if (currentUser) {
       setUser(currentUser);
-      setLoading(false);
-      return;
     }
-    
-    // Fallback to localStorage if Firebase auth state is not available
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch (e) {
-        // Invalid JSON in localStorage, clear it
-        localStorage.removeItem('user');
-      }
-    }
-    
     setLoading(false);
   }, []);
 
@@ -56,8 +42,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const user = await signIn(email, password);
       if (user) {
         setUser(user);
-        // Store in localStorage as a backup
-        localStorage.setItem('user', JSON.stringify(user));
       } else {
         throw new Error('Failed to login');
       }
@@ -77,8 +61,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const user = await signInWithGoogle();
       if (user) {
         setUser(user);
-        // Store in localStorage as a backup
-        localStorage.setItem('user', JSON.stringify(user));
       } else {
         throw new Error('Failed to login with Google');
       }
@@ -98,8 +80,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const user = await signUp(email, password);
       if (user) {
         setUser(user);
-        // Store in localStorage as a backup
-        localStorage.setItem('user', JSON.stringify(user));
       } else {
         throw new Error('Failed to register');
       }
@@ -117,7 +97,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(true);
       await signOut();
       setUser(null);
-      localStorage.removeItem('user');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'An error occurred during logout';
       setError(errorMessage);
