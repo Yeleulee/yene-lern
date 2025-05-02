@@ -18,8 +18,8 @@ export const sushiWebsiteCourse: CourseData = {
   sections: [
     {
       id: 'intro',
-      title: 'Intro',
-      videoId: 'dQw4w9WgXcQ',
+      title: 'Intro to Sushi Website Project',
+      videoId: 'FazgJVnrVuI',
       completed: true,
       current: false
     },
