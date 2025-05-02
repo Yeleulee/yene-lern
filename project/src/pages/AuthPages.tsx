@@ -1,38 +1,76 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
-  const { login, loginWithGoogle, loading } = useAuth();
+  const location = useLocation();
+  const { login, loginWithGoogle, loading, user } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [authInProgress, setAuthInProgress] = useState(false);
+
+  // Redirect if user is already logged in
+  useEffect(() => {
+    if (user) {
+      // If user came from a specific page, redirect back to it
+      const from = (location.state as any)?.from?.pathname || '/dashboard';
+      navigate(from, { replace: true });
+    }
+  }, [user, navigate, location]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setAuthInProgress(true);
     
     try {
       await login(email, password);
-      navigate('/dashboard');
-    } catch (err) {
-      setError('Invalid email or password');
+      // Navigation happens in the useEffect when user state changes
+    } catch (err: any) {
+      // More descriptive error messages
+      if (err.message?.includes('auth/wrong-password') || 
+          err.message?.includes('auth/user-not-found')) {
+        setError('Invalid email or password. Please try again.');
+      } else if (err.message?.includes('auth/too-many-requests')) {
+        setError('Too many failed attempts. Please try again later or reset your password.');
+      } else if (err.message?.includes('auth/network-request-failed')) {
+        setError('Network error. Please check your internet connection and try again.');
+      } else {
+        setError(err.message || 'Login failed. Please try again.');
+      }
+    } finally {
+      setAuthInProgress(false);
     }
   };
 
   const handleGoogleLogin = async () => {
     setError('');
+    setAuthInProgress(true);
     
     try {
       await loginWithGoogle();
-      navigate('/dashboard');
-    } catch (err) {
-      setError('Google login failed. Please try again.');
+      // Navigation happens in the useEffect when user state changes
+    } catch (err: any) {
+      if (err.message?.includes('popup-blocked')) {
+        setError('Popup was blocked by your browser. Please allow popups for this site and try again.');
+      } else if (err.message?.includes('popup-closed-by-user')) {
+        setError('Login was canceled. Please try again.');
+      } else if (err.message?.includes('auth/network-request-failed')) {
+        setError('Network error. Please check your internet connection and try again.');
+      } else {
+        setError(err.message || 'Google login failed. Please try again.');
+      }
+    } finally {
+      setAuthInProgress(false);
     }
   };
+
+  // If login is in progress, show loading
+  const isLoading = loading || authInProgress;
 
   return (
     <div className="min-h-[calc(100vh-64px)] flex items-center justify-center bg-gray-50 py-12 px-4">
@@ -58,6 +96,7 @@ export const LoginPage: React.FC = () => {
             label="Email Address"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            disabled={isLoading}
           />
           
           <Input
@@ -69,9 +108,10 @@ export const LoginPage: React.FC = () => {
             label="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            disabled={isLoading}
           />
           
-          <Button type="submit" className="w-full" isLoading={loading}>
+          <Button type="submit" className="w-full" isLoading={isLoading} disabled={isLoading}>
             Log In
           </Button>
           
@@ -89,7 +129,8 @@ export const LoginPage: React.FC = () => {
             variant="outline" 
             className="w-full flex items-center justify-center gap-2"
             onClick={handleGoogleLogin}
-            isLoading={loading}
+            isLoading={isLoading}
+            disabled={isLoading}
           >
             <svg viewBox="0 0 24 24" width="24" height="24" xmlns="http://www.w3.org/2000/svg">
               <g transform="matrix(1, 0, 0, 1, 27.009001, -39.238998)">
@@ -103,6 +144,11 @@ export const LoginPage: React.FC = () => {
           </Button>
           
           <div className="text-center mt-4">
+            <div className="text-sm text-gray-600 mb-2">
+              <Link to="/forgot-password" className="font-medium text-primary-600 hover:text-primary-500">
+                Forgot your password?
+              </Link>
+            </div>
             <p className="text-sm text-gray-600">
               Don't have an account?{' '}
               <Link to="/signup" className="font-medium text-primary-600 hover:text-primary-500">
@@ -118,11 +164,19 @@ export const LoginPage: React.FC = () => {
 
 export const SignupPage: React.FC = () => {
   const navigate = useNavigate();
-  const { register, loginWithGoogle, loading } = useAuth();
+  const { register, loginWithGoogle, loading, user } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
+  const [authInProgress, setAuthInProgress] = useState(false);
+
+  // Redirect if user is already logged in
+  useEffect(() => {
+    if (user) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [user, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -133,24 +187,54 @@ export const SignupPage: React.FC = () => {
       return;
     }
     
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters long');
+      return;
+    }
+    
+    setAuthInProgress(true);
     try {
       await register(email, password);
-      navigate('/dashboard');
-    } catch (err) {
-      setError('Failed to create an account');
+      // Navigation happens in the useEffect when user state changes
+    } catch (err: any) {
+      if (err.message?.includes('auth/email-already-in-use')) {
+        setError('This email is already registered. Please log in or use a different email.');
+      } else if (err.message?.includes('auth/invalid-email')) {
+        setError('Please enter a valid email address.');
+      } else if (err.message?.includes('auth/network-request-failed')) {
+        setError('Network error. Please check your internet connection and try again.');
+      } else {
+        setError(err.message || 'Registration failed. Please try again.');
+      }
+    } finally {
+      setAuthInProgress(false);
     }
   };
 
   const handleGoogleSignup = async () => {
     setError('');
+    setAuthInProgress(true);
     
     try {
       await loginWithGoogle();
-      navigate('/dashboard');
-    } catch (err) {
-      setError('Google sign-up failed. Please try again.');
+      // Navigation happens in the useEffect when user state changes
+    } catch (err: any) {
+      if (err.message?.includes('popup-blocked')) {
+        setError('Popup was blocked by your browser. Please allow popups for this site and try again.');
+      } else if (err.message?.includes('popup-closed-by-user')) {
+        setError('Sign-up was canceled. Please try again.');
+      } else if (err.message?.includes('auth/network-request-failed')) {
+        setError('Network error. Please check your internet connection and try again.');
+      } else {
+        setError(err.message || 'Google sign-up failed. Please try again.');
+      }
+    } finally {
+      setAuthInProgress(false);
     }
   };
+
+  // If signup is in progress, show loading
+  const isLoading = loading || authInProgress;
 
   return (
     <div className="min-h-[calc(100vh-64px)] flex items-center justify-center bg-gray-50 py-12 px-4">
@@ -176,6 +260,7 @@ export const SignupPage: React.FC = () => {
             label="Email Address"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            disabled={isLoading}
           />
           
           <Input
@@ -187,6 +272,7 @@ export const SignupPage: React.FC = () => {
             label="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            disabled={isLoading}
           />
           
           <Input
@@ -198,9 +284,10 @@ export const SignupPage: React.FC = () => {
             label="Confirm Password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
+            disabled={isLoading}
           />
           
-          <Button type="submit" className="w-full" isLoading={loading}>
+          <Button type="submit" className="w-full" isLoading={isLoading} disabled={isLoading}>
             Create Account
           </Button>
           
@@ -218,7 +305,8 @@ export const SignupPage: React.FC = () => {
             variant="outline" 
             className="w-full flex items-center justify-center gap-2"
             onClick={handleGoogleSignup}
-            isLoading={loading}
+            isLoading={isLoading}
+            disabled={isLoading}
           >
             <svg viewBox="0 0 24 24" width="24" height="24" xmlns="http://www.w3.org/2000/svg">
               <g transform="matrix(1, 0, 0, 1, 27.009001, -39.238998)">

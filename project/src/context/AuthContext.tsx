@@ -1,6 +1,12 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User } from '../types';
-import { signIn, signUp, signOut, signInWithGoogle } from '../services/firebaseService';
+import { 
+  signIn, 
+  signUp, 
+  signOut, 
+  signInWithGoogle, 
+  getCurrentUser
+} from '../services/firebaseService';
 
 interface AuthContextType {
   user: User | null;
@@ -19,12 +25,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Check authentication state on mount and when auth changes
   useEffect(() => {
-    // Check if user is stored in localStorage (for demo purposes)
+    // First, try to get the current Firebase authenticated user
+    const currentUser = getCurrentUser();
+    if (currentUser) {
+      setUser(currentUser);
+      setLoading(false);
+      return;
+    }
+    
+    // Fallback to localStorage if Firebase auth state is not available
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
-      setUser(JSON.parse(storedUser));
+      try {
+        setUser(JSON.parse(storedUser));
+      } catch (e) {
+        // Invalid JSON in localStorage, clear it
+        localStorage.removeItem('user');
+      }
     }
+    
     setLoading(false);
   }, []);
 
@@ -35,13 +56,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const user = await signIn(email, password);
       if (user) {
         setUser(user);
+        // Store in localStorage as a backup
         localStorage.setItem('user', JSON.stringify(user));
       } else {
         throw new Error('Failed to login');
       }
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'An error occurred during login');
-      throw error;
+      const errorMessage = error instanceof Error ? error.message : 'An error occurred during login';
+      setError(errorMessage);
+      throw new Error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -54,13 +77,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const user = await signInWithGoogle();
       if (user) {
         setUser(user);
+        // Store in localStorage as a backup
         localStorage.setItem('user', JSON.stringify(user));
       } else {
         throw new Error('Failed to login with Google');
       }
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'An error occurred during Google login');
-      throw error;
+      const errorMessage = error instanceof Error ? error.message : 'An error occurred during Google login';
+      setError(errorMessage);
+      throw new Error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -73,13 +98,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const user = await signUp(email, password);
       if (user) {
         setUser(user);
+        // Store in localStorage as a backup
         localStorage.setItem('user', JSON.stringify(user));
       } else {
         throw new Error('Failed to register');
       }
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'An error occurred during registration');
-      throw error;
+      const errorMessage = error instanceof Error ? error.message : 'An error occurred during registration';
+      setError(errorMessage);
+      throw new Error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -92,8 +119,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null);
       localStorage.removeItem('user');
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'An error occurred during logout');
-      throw error;
+      const errorMessage = error instanceof Error ? error.message : 'An error occurred during logout';
+      setError(errorMessage);
+      console.error('Logout error:', errorMessage);
     } finally {
       setLoading(false);
     }

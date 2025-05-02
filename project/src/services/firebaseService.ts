@@ -6,19 +6,22 @@ import {
   createUserWithEmailAndPassword, 
   signOut as firebaseSignOut,
   GoogleAuthProvider,
-  signInWithPopup
+  signInWithPopup,
+  setPersistence,
+  browserLocalPersistence
 } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
-// Firebase configuration with fallback for direct API key usage
+// Firebase configuration with hardcoded values for deployment
+// In production, you would use environment variables more securely
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyBsopD1S8DgU3QZPAi6ONpfy4Pwu66VmkQ',
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'course-645c1.firebaseapp.com',
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'course-645c1',
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'course-645c1.firebasestorage.app',
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '590916776837',
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:590916776837:web:1ec8fa67ebc889f72d4aec',
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || 'G-T46294GVQE',
+  apiKey: "AIzaSyBsopD1S8DgU3QZPAi6ONpfy4Pwu66VmkQ",
+  authDomain: "course-645c1.firebaseapp.com",
+  projectId: "course-645c1",
+  storageBucket: "course-645c1.appspot.com",
+  messagingSenderId: "590916776837",
+  appId: "1:590916776837:web:1ec8fa67ebc889f72d4aec",
+  measurementId: "G-T46294GVQE",
 };
 
 // Initialize Firebase
@@ -27,18 +30,25 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const googleProvider = new GoogleAuthProvider();
 
+// Set persistence to LOCAL (survive page refresh)
+setPersistence(auth, browserLocalPersistence).catch((error) => {
+  console.error("Error setting auth persistence:", error);
+});
+
 // Email/Password Authentication
 export async function signIn(email: string, password: string): Promise<User | null> {
   try {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
-  return {
+    return {
       uid: userCredential.user.uid,
       email: userCredential.user.email || '',
       displayName: userCredential.user.displayName || email.split('@')[0],
-  };
-  } catch (error) {
-    console.error('Error signing in:', error);
-    return null;
+      photoURL: userCredential.user.photoURL || undefined
+    };
+  } catch (error: any) {
+    // Enhanced error logging for debugging
+    console.error('Error signing in:', error.code, error.message);
+    throw new Error(error.message || 'Failed to login'); 
   }
 }
 
@@ -49,27 +59,32 @@ export async function signUp(email: string, password: string): Promise<User | nu
       uid: userCredential.user.uid,
       email: userCredential.user.email || '',
       displayName: userCredential.user.displayName || email.split('@')[0],
+      photoURL: userCredential.user.photoURL || undefined
     };
-  } catch (error) {
-    console.error('Error signing up:', error);
-    return null;
+  } catch (error: any) {
+    console.error('Error signing up:', error.code, error.message);
+    throw new Error(error.message || 'Failed to register');
   }
 }
 
 // Google Authentication
 export async function signInWithGoogle(): Promise<User | null> {
   try {
+    // Add additional scopes if needed for your application
+    googleProvider.addScope('profile');
+    googleProvider.addScope('email');
+    
     const result = await signInWithPopup(auth, googleProvider);
     const user = result.user;
-  return {
+    return {
       uid: user.uid,
       email: user.email || '',
       displayName: user.displayName || user.email?.split('@')[0] || '',
       photoURL: user.photoURL || undefined
     };
-  } catch (error) {
-    console.error('Error signing in with Google:', error);
-    return null;
+  } catch (error: any) {
+    console.error('Error signing in with Google:', error.code, error.message);
+    throw new Error(error.message || 'Failed to login with Google');
   }
 }
 
@@ -80,6 +95,20 @@ export async function signOut(): Promise<void> {
     console.error('Error signing out:', error);
     throw error;
   }
+}
+
+// Retrieve current authenticated user (for checking auth state)
+export function getCurrentUser(): User | null {
+  const currentUser = auth.currentUser;
+  
+  if (!currentUser) return null;
+  
+  return {
+    uid: currentUser.uid,
+    email: currentUser.email || '',
+    displayName: currentUser.displayName || currentUser.email?.split('@')[0] || '',
+    photoURL: currentUser.photoURL || undefined
+  };
 }
 
 // Mock user video functions - would be replaced with Firestore in production
