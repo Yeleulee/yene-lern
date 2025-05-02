@@ -35,7 +35,7 @@ export async function signIn(email: string, password: string): Promise<User | nu
       uid: userCredential.user.uid,
       email: userCredential.user.email || '',
       displayName: userCredential.user.displayName || email.split('@')[0],
-    };
+  };
   } catch (error) {
     console.error('Error signing in:', error);
     return null;

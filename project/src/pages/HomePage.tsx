@@ -36,7 +36,7 @@ const HomePage: React.FC = () => {
       name: "Sarah Chen",
       role: "Software Developer",
       image: "https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg",
-      text: "LearnTube AI helped me master React in half the time. The AI summaries are incredibly helpful!"
+      text: "Yene Learn helped me master React in half the time. The AI summaries are incredibly helpful!"
     },
     {
       name: "James Wilson",
@@ -254,7 +254,7 @@ const HomePage: React.FC = () => {
             Ready to Learn Faster?
           </h2>
           <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
-            Join thousands of learners who are already using LearnTube AI to
+            Join thousands of learners who are already using Yene Learn to
             accelerate their learning journey.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">

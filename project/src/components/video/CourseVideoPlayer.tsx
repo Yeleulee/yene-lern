@@ -185,7 +185,7 @@ const CourseVideoPlayer: React.FC<CourseVideoPlayerProps> = ({ videoId }) => {
                 {currentCourseData.currentSection.title}
               </h2>
               <div className="text-sm text-gray-500 mt-1">
-                Class Central Classrooms
+                Yene Learn Classrooms
               </div>
             </div>
           </div>
