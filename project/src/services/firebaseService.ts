@@ -13,16 +13,15 @@ import {
 } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
-// Firebase configuration with hardcoded values for deployment
-// In production, you would use environment variables more securely
+// Firebase configuration using environment variables with fallback to hardcoded values
 const firebaseConfig = {
-  apiKey: "AIzaSyCE0yUX6AVxi1c7hV8rruH_WQL3TC4508g",
-  authDomain: "yene-learn.firebaseapp.com",
-  projectId: "yene-learn",
-  storageBucket: "yene-learn.firebasestorage.app",
-  messagingSenderId: "308752559621",
-  appId: "1:308752559621:web:5d4ed1674297d30fcb766c",
-  measurementId: "G-XQR4V7CSS0"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyCE0yUX6AVxi1c7hV8rruH_WQL3TC4508g",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "yene-learn.firebaseapp.com",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "yene-learn",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "yene-learn.firebasestorage.app",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "308752559621",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:308752559621:web:5d4ed1674297d30fcb766c",
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "G-XQR4V7CSS0"
 };
 
 // Initialize Firebase
