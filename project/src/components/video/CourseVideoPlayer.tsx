@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, CheckCircle, BookmarkPlus, ArrowLeft } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CheckCircle, BookmarkPlus, ArrowLeft, Menu, X } from 'lucide-react';
 import { getCourseSectionByVideoId, getNextSection, getPrevSection } from '../../data/mockCourseData';
 
 interface CourseVideoPlayerProps {
@@ -12,6 +12,7 @@ const CourseVideoPlayer: React.FC<CourseVideoPlayerProps> = ({ videoId }) => {
   const [autoPlay, setAutoPlay] = useState(false);
   const [videoError, setVideoError] = useState<string | null>(null);
   const [isVideoLoaded, setIsVideoLoaded] = useState(false);
+  const [showOutline, setShowOutline] = useState(true);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [currentCourseData, setCurrentCourseData] = useState<{
     courseId: string;
@@ -21,6 +22,28 @@ const CourseVideoPlayer: React.FC<CourseVideoPlayerProps> = ({ videoId }) => {
     currentIndex: number;
   } | null>(null);
   
+  // Check window size on mount and resize
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 768) {
+        setShowOutline(false);
+      } else {
+        setShowOutline(true);
+      }
+    };
+    
+    // Set initial state
+    handleResize();
+    
+    // Add event listener
+    window.addEventListener('resize', handleResize);
+    
+    // Cleanup
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
+
   useEffect(() => {
     console.log(`Loading course video with ID: ${videoId}`);
     // Find the course and section for this video
@@ -167,6 +190,12 @@ const CourseVideoPlayer: React.FC<CourseVideoPlayerProps> = ({ videoId }) => {
       <header className="bg-white border-b border-gray-200 py-3 px-4">
         <div className="container mx-auto">
           <div className="flex items-center">
+            <button 
+              className="md:hidden mr-2 text-gray-700"
+              onClick={() => setShowOutline(!showOutline)}
+            >
+              {showOutline ? <X size={20} /> : <Menu size={20} />}
+            </button>
             <Link to="/my-learning" className="text-gray-700 hover:text-blue-600 flex items-center">
               <ArrowLeft size={20} className="mr-2" />
               <span className="text-sm">Back</span>
@@ -196,9 +225,9 @@ const CourseVideoPlayer: React.FC<CourseVideoPlayerProps> = ({ videoId }) => {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col md:flex-row">
-        {/* Left Sidebar */}
-        <div className="w-full md:w-80 bg-white border-r border-gray-200 flex flex-col">
+      <div className="flex flex-row h-[calc(100vh-120px)] relative">
+        {/* Left Sidebar - conditionally shown based on showOutline state */}
+        <div className={`${showOutline ? 'w-80' : 'w-0'} md:w-80 bg-white border-r border-gray-200 flex flex-col overflow-hidden transition-all duration-300 absolute md:relative z-10 h-full`}>
           {/* Play All Toggle */}
           <div className="border-b border-gray-200 p-4">
             <label className="flex items-center space-x-2 cursor-pointer">
@@ -227,7 +256,12 @@ const CourseVideoPlayer: React.FC<CourseVideoPlayerProps> = ({ videoId }) => {
                 className={`flex items-center border-b border-gray-100 p-4 hover:bg-gray-50 cursor-pointer ${
                   section.current ? 'bg-blue-50' : ''
                 }`}
-                onClick={() => navigate(`/video/${section.videoId}`)}
+                onClick={() => {
+                  navigate(`/video/${section.videoId}`);
+                  if (window.innerWidth < 768) {
+                    setShowOutline(false);
+                  }
+                }}
               >
                 <div className="mr-3 flex-shrink-0">
                   <div className={`h-7 w-7 flex items-center justify-center rounded-full ${
@@ -253,9 +287,16 @@ const CourseVideoPlayer: React.FC<CourseVideoPlayerProps> = ({ videoId }) => {
         </div>
 
         {/* Main Content Area */}
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Current section title for mobile */}
+          <div className="md:hidden bg-white p-3 border-b border-gray-200">
+            <h2 className="text-md font-medium truncate">
+              {currentCourseData.currentSection.title}
+            </h2>
+          </div>
+          
           {/* Video Player */}
-          <div className="w-full bg-black aspect-video">
+          <div className="w-full bg-black h-[60vh]">
             <iframe
               src={`https://www.youtube.com/embed/${videoId}?rel=0&enablejsapi=1`}
               title="YouTube video player"
