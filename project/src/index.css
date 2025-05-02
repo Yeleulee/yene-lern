@@ -1,0 +1,140 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-primary: 59 130 246;
+    --color-secondary: 139 92 246;
+    --color-accent: 249 115 22;
+    --color-success: 34 197 94;
+    --color-warning: 234 179 8;
+    --color-error: 239 68 68;
+  }
+
+  body {
+    @apply bg-gray-50 text-gray-900 antialiased;
+    font-feature-settings: "ss01", "ss03", "cv01", "cv03";
+    -webkit-tap-highlight-color: transparent;
+    text-size-adjust: 100%;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-medium leading-tight;
+  }
+  
+  /* Override default focus outline for better visibility */
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-blue-500;
+  }
+  
+  /* Ensure media elements scale correctly */
+  img, video, iframe {
+    @apply max-w-full h-auto;
+  }
+}
+
+@layer components {
+  .input {
+    @apply w-full rounded-lg border border-gray-300 px-4 py-2 text-base shadow-sm 
+           focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 
+           transition duration-200;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium
+           shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 
+           focus:ring-primary-500/50 disabled:opacity-50;
+  }
+
+  .btn-primary {
+    @apply bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800;
+  }
+
+  .btn-secondary {
+    @apply bg-secondary-600 text-white hover:bg-secondary-700 active:bg-secondary-800;
+  }
+
+  .btn-outline {
+    @apply border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 active:bg-gray-100;
+  }
+
+  .card {
+    @apply rounded-xl bg-white p-6 shadow-md transition-all duration-300 hover:shadow-lg;
+  }
+
+  .status-pill {
+    @apply inline-flex items-center rounded-full px-3 py-1 text-xs font-medium;
+  }
+
+  .status-to-learn {
+    @apply bg-gray-100 text-gray-800;
+  }
+
+  .status-in-progress {
+    @apply bg-blue-100 text-blue-800;
+  }
+
+  .status-completed {
+    @apply bg-green-100 text-green-800;
+  }
+  
+  /* Responsive text sizing */
+  .text-responsive {
+    @apply text-base sm:text-lg md:text-xl lg:text-2xl;
+  }
+  
+  /* Touch-friendly tap targets */
+  .tap-target {
+    @apply min-h-[44px] min-w-[44px];
+  }
+  
+  /* Container for consistent padding on smaller screens */
+  .container-responsive {
+    @apply px-4 sm:px-6 md:px-8;
+  }
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.4s ease-out forwards;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.5s ease-out forwards;
+}
+
+/* Mobile-specific fixes */
+@media (max-width: 640px) {
+  /* Prevent text from being too small */
+  html {
+    font-size: 16px;
+  }
+  
+  /* Fix for buttons that might break layout */
+  .btn-row {
+    @apply flex flex-col sm:flex-row gap-2 w-full;
+  }
+  
+  /* Ensure better touch targets */
+  button, a {
+    @apply min-h-[44px];
+  }
+}
+
+/* Medium screen fixes */
+@media (min-width: 641px) and (max-width: 1023px) {
+  .md-container {
+    @apply px-6;
+  }
+}
