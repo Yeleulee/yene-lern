@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { CheckCircle, AlertCircle } from 'lucide-react';
-import { getCourseSectionByVideoId, getNextSection } from '../../data/mockCourseData';
+import { useNavigate, Link } from 'react-router-dom';
+import { ChevronLeft, ChevronRight, CheckCircle, BookmarkPlus, ArrowLeft } from 'lucide-react';
+import { getCourseSectionByVideoId, getNextSection, getPrevSection } from '../../data/mockCourseData';
 
 interface CourseVideoPlayerProps {
   videoId: string;
@@ -102,30 +102,29 @@ const CourseVideoPlayer: React.FC<CourseVideoPlayerProps> = ({ videoId }) => {
     }
   };
 
-  // If in a course but still loading
-  if (!isVideoLoaded && currentCourseData) {
-    return (
-      <div className="flex flex-col md:h-[calc(100vh-64px)] h-screen">
-        <div className="flex-1 flex items-center justify-center bg-gray-800">
-          <div className="text-white text-center">
-            <div className="animate-spin mb-4 mx-auto h-10 w-10 border-4 border-t-blue-500 border-blue-200 rounded-full"></div>
-            <p>Loading course video...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const navigateToNextSection = () => {
+    if (currentCourseData) {
+      const nextSection = getNextSection(currentCourseData.courseId, currentCourseData.currentSection.id);
+      if (nextSection) {
+        navigate(`/video/${nextSection.videoId}`);
+      }
+    }
+  };
+
+  const navigateToPrevSection = () => {
+    if (currentCourseData) {
+      const prevSection = getPrevSection(currentCourseData.courseId, currentCourseData.currentSection.id);
+      if (prevSection) {
+        navigate(`/video/${prevSection.videoId}`);
+      }
+    }
+  };
 
   // Display an error message if the video can't be found or loaded
   if (videoError) {
     return (
       <div className="flex flex-col items-center justify-center h-screen bg-gray-100 p-6">
         <div className="bg-white rounded-xl shadow-md p-8 max-w-md text-center">
-          <div className="flex justify-center mb-4">
-            <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center">
-              <AlertCircle size={32} className="text-red-600" />
-            </div>
-          </div>
           <h2 className="text-2xl font-bold mb-2">Video Error</h2>
           <p className="text-gray-600 mb-6">{videoError}</p>
           <button 
@@ -159,75 +158,104 @@ const CourseVideoPlayer: React.FC<CourseVideoPlayerProps> = ({ videoId }) => {
   const completedCount = currentCourseData.sections.filter(s => s.completed).length;
   const totalSections = currentCourseData.sections.length;
   const currentSectionNumber = currentCourseData.currentIndex + 1;
+  const nextSection = getNextSection(currentCourseData.courseId, currentCourseData.currentSection.id);
+  const prevSection = getPrevSection(currentCourseData.courseId, currentCourseData.currentSection.id);
   
   return (
-    <div className="flex flex-col md:h-[calc(100vh-64px)] h-screen">
-      <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
-        {/* Sidebar - hidden by default on mobile, toggled with button */}
-        <div className="md:w-80 w-full md:h-full bg-white border-r border-gray-200 flex flex-col overflow-hidden md:block">
-          {/* Progress counter and autoplay toggle */}
-          <div className="p-4 border-b border-gray-200">
-            <div className="text-right text-sm text-gray-600 mb-3">
-              {completedCount}/{totalSections} completed
-            </div>
-            
-            <div className="flex items-start">
-              <label className="flex items-center cursor-pointer">
-                <div className="relative">
-                  <input
-                    type="checkbox"
-                    className="sr-only"
-                    checked={autoPlay}
-                    onChange={handleAutoPlayToggle}
-                  />
-                  <div className={`block w-10 h-6 rounded-full ${autoPlay ? 'bg-blue-600' : 'bg-gray-300'}`}></div>
-                  <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${autoPlay ? 'transform translate-x-4' : ''}`}></div>
-                </div>
-                <span className="ml-2 text-sm font-medium">Play All</span>
-              </label>
-            </div>
-            <div className="text-xs text-gray-500 mt-1">
-              Automatically move to the next video in the Classroom when playback concludes
+    <div className="flex flex-col min-h-screen bg-gray-50">
+      {/* Top Navigation Bar */}
+      <header className="bg-white border-b border-gray-200 py-3 px-4">
+        <div className="container mx-auto">
+          <div className="flex items-center">
+            <Link to="/my-learning" className="text-gray-700 hover:text-blue-600 flex items-center">
+              <ArrowLeft size={20} className="mr-2" />
+              <span className="text-sm">Back</span>
+            </Link>
+            <span className="mx-2 text-gray-400">/</span>
+            <h1 className="text-md font-medium text-gray-800">Classroom</h1>
+            <div className="ml-auto">
+              <button className="flex items-center text-blue-600 hover:text-blue-800">
+                <BookmarkPlus size={20} className="mr-1" />
+                <span className="text-sm">Add to list</span>
+              </button>
             </div>
           </div>
-          
-          {/* Course sections list */}
-          <div className="overflow-y-auto flex-grow">
+        </div>
+      </header>
+
+      {/* Course Title */}
+      <div className="bg-white border-b border-gray-200 py-4 px-4">
+        <div className="container mx-auto">
+          <h1 className="text-xl md:text-2xl font-bold text-gray-900">{currentCourseData.title}</h1>
+          <div className="flex items-center text-sm text-gray-600 mt-1">
+            <span>JavaScript Mastery via YouTube</span>
+            <span className="mx-2">•</span>
+            <a href="#" className="text-blue-600 hover:underline">Direct link</a>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col md:flex-row">
+        {/* Left Sidebar */}
+        <div className="w-full md:w-80 bg-white border-r border-gray-200 flex flex-col">
+          {/* Play All Toggle */}
+          <div className="border-b border-gray-200 p-4">
+            <label className="flex items-center space-x-2 cursor-pointer">
+              <div className="relative inline-flex items-center">
+                <input
+                  type="checkbox"
+                  className="sr-only"
+                  checked={autoPlay}
+                  onChange={handleAutoPlayToggle}
+                />
+                <div className={`h-6 w-12 rounded-full transition ${autoPlay ? 'bg-blue-600' : 'bg-gray-300'}`}></div>
+                <div className={`absolute transform ${autoPlay ? 'translate-x-6' : 'translate-x-1'} transition ease-in-out duration-200 h-4 w-4 rounded-full bg-white`}></div>
+              </div>
+              <span className="text-sm font-medium">Play All</span>
+            </label>
+            <p className="text-xs text-gray-500 mt-1">
+              Automatically move to the next video in the Classroom when playback concludes
+            </p>
+          </div>
+
+          {/* Course Sections List */}
+          <div className="flex-1 overflow-y-auto">
             {currentCourseData.sections.map((section, index) => (
-              <div 
+              <div
                 key={section.id}
-                className={`flex items-center p-4 border-b border-gray-100 hover:bg-gray-50 cursor-pointer ${
+                className={`flex items-center border-b border-gray-100 p-4 hover:bg-gray-50 cursor-pointer ${
                   section.current ? 'bg-blue-50' : ''
                 }`}
                 onClick={() => navigate(`/video/${section.videoId}`)}
               >
-                <div className="flex-shrink-0 w-8 h-8 mr-4">
-                  <div className={`w-8 h-8 flex items-center justify-center rounded-full ${
-                    section.completed ? 'bg-white' : 'bg-gray-100'
-                  } text-gray-700`}>
+                <div className="mr-3 flex-shrink-0">
+                  <div className={`h-7 w-7 flex items-center justify-center rounded-full ${
+                    section.completed ? 'bg-blue-100 text-blue-600' : 
+                    section.current ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700'
+                  }`}>
                     {section.completed ? (
-                      <CheckCircle size={20} className="text-blue-600" />
+                      <CheckCircle size={16} className="text-blue-600" />
                     ) : (
-                      <span>{index + 1}</span>
+                      <span className="text-sm font-medium">{index + 1}</span>
                     )}
                   </div>
                 </div>
-                <div className="flex-grow">
-                  <span className={`${section.current ? 'text-blue-700 font-medium' : 'text-gray-700'}`}>
-                    {section.title}
-                  </span>
-                </div>
-                {section.current && (
-                  <div className="flex-shrink-0 w-4 h-4 rounded-full bg-blue-500"></div>
-                )}
+                <span className={`text-sm ${
+                  section.current ? 'font-medium text-blue-700' : 
+                  section.completed ? 'text-gray-600' : 'text-gray-700'
+                }`}>
+                  {section.title}
+                </span>
               </div>
             ))}
           </div>
         </div>
-        
-        {/* Main content */}
-        <div className="flex-1 flex flex-col overflow-hidden bg-gray-100">
-          <div className="bg-black flex-grow">
+
+        {/* Main Content Area */}
+        <div className="flex-1 flex flex-col">
+          {/* Video Player */}
+          <div className="w-full bg-black aspect-video">
             <iframe
               src={`https://www.youtube.com/embed/${videoId}?rel=0&enablejsapi=1`}
               title="YouTube video player"
@@ -239,29 +267,61 @@ const CourseVideoPlayer: React.FC<CourseVideoPlayerProps> = ({ videoId }) => {
               ref={iframeRef}
             ></iframe>
           </div>
-          <div className="p-3 md:p-6 bg-white">
-            <div className="container mx-auto">
-              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 mb-2">
-                <div className="text-gray-500 text-sm">
-                  {currentSectionNumber} of {totalSections}
+
+          {/* Mark Complete button */}
+          <div className="bg-white p-4 border-t border-gray-200">
+            <div className="container mx-auto flex justify-between items-center">
+              <h2 className="text-lg font-semibold">{currentCourseData.currentSection.title}</h2>
+              <button
+                onClick={handleMarkComplete}
+                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded"
+              >
+                <CheckCircle size={16} />
+                <span>Mark as complete</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Video Navigation */}
+          <div className="bg-white p-4 border-t border-gray-200 flex items-center justify-between">
+            <div className="text-sm text-gray-500">
+              <div className="flex items-center">
+                <div className="w-32 h-2 bg-gray-200 rounded-full overflow-hidden mr-2">
+                  <div 
+                    className="h-full bg-blue-600 rounded-full" 
+                    style={{ width: `${(completedCount / totalSections) * 100}%` }}
+                  ></div>
                 </div>
-                <div className="flex-shrink-0">
-                  <button 
-                    className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md w-full sm:w-auto"
-                    onClick={handleMarkComplete}
-                  >
-                    <CheckCircle size={18} />
-                    <span className="whitespace-nowrap">Mark as complete</span>
-                  </button>
-                </div>
+                <span>{completedCount}/{totalSections} completed</span>
               </div>
-              
-              <h2 className="text-xl font-bold mt-2">
-                {currentCourseData.currentSection.title}
-              </h2>
-              <div className="text-sm text-gray-500 mt-1">
-                Yene Learn Classrooms
-              </div>
+            </div>
+            
+            <div className="flex space-x-4">
+              <button
+                onClick={navigateToPrevSection}
+                className={`flex items-center space-x-1 px-4 py-2 border ${
+                  prevSection 
+                  ? 'border-gray-300 hover:bg-gray-50 text-gray-700' 
+                  : 'border-gray-200 text-gray-400 cursor-not-allowed'
+                } rounded`}
+                disabled={!prevSection}
+              >
+                <ChevronLeft size={16} />
+                <span>Previous</span>
+              </button>
+
+              <button
+                onClick={navigateToNextSection}
+                className={`flex items-center space-x-1 px-4 py-2 ${
+                  nextSection
+                  ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                  : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                } rounded`}
+                disabled={!nextSection}
+              >
+                <span>Next</span>
+                <ChevronRight size={16} />
+              </button>
             </div>
           </div>
         </div>
