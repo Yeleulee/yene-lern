@@ -1,5 +1,6 @@
 import { VideoSummary } from '../types';
 
+// Replace the default key with a real Gemini API key
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || 'AIzaSyA7jQcLw_M0Dt6ZMQFf7VOsJsAPKo6h35Y';
 const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
 
@@ -80,14 +81,14 @@ export async function generateVideoSummary(
 // Enhanced function to ask general questions to Gemini with education-specific context
 export async function askGemini(question: string): Promise<string> {
   try {
-    // If no API key is available, return a mock response instead of failing
-    if (!API_KEY || API_KEY === 'AIzaSyA7jQcLw_M0Dt6ZMQFf7VOsJsAPKo6h35Y') {
-      console.log('Using mock response because no valid API key was provided');
-      // Return a mock response based on the question
-      return generateMockResponse(question);
+    // Check if API key is the default one (always use the real API if available)
+    const isUsingDefaultKey = API_KEY === 'AIzaSyA7jQcLw_M0Dt6ZMQFf7VOsJsAPKo6h35Y';
+    
+    if (isUsingDefaultKey) {
+      console.warn('Using default API key - consider setting your own VITE_GEMINI_API_KEY in environment variables');
     }
 
-    const systemPrompt = `You are an educational AI assistant for Yene Learn, an online learning platform that helps students understand video content.
+    const systemPrompt = `You are an educational AI assistant for Yene Learn, an Ethiopian online learning platform that helps students understand video content.
     Your goal is to provide helpful, informative, and educational responses with these characteristics:
     - Focus on educational content and learning
     - Be concise but thorough
@@ -113,14 +114,27 @@ export async function askGemini(question: string): Promise<string> {
             ],
           },
         ],
+        generationConfig: {
+          temperature: 0.7,
+          topP: 0.95,
+          topK: 40
+        }
       }),
     });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       console.error('Gemini API error:', errorData);
-      // If API fails, fall back to mock response
-      return generateMockResponse(question);
+      
+      if (response.status === 400) {
+        return "I'm sorry, but your request couldn't be processed. It may contain content that can't be addressed.";
+      }
+      
+      if (response.status === 403 || response.status === 401) {
+        return "API key error: Please check that the Gemini API key is valid and has sufficient permissions.";
+      }
+      
+      return "I encountered an error connecting to my knowledge base. Please try again later.";
     }
 
     const data = await response.json();
@@ -128,13 +142,19 @@ export async function askGemini(question: string): Promise<string> {
     // Safety check for expected response format
     if (!data.candidates || !data.candidates[0]?.content?.parts?.[0]?.text) {
       console.error('Unexpected response format from Gemini API:', data);
-      return generateMockResponse(question);
+      return "I received a response I couldn't understand. Please try asking in a different way.";
     }
     
     return data.candidates[0].content.parts[0].text;
   } catch (error) {
     console.error('Error asking Gemini:', error);
-    return generateMockResponse(question);
+    if (error instanceof Error) {
+      if (error.message.includes('Failed to fetch')) {
+        return "Network error: Please check your internet connection and try again.";
+      }
+      return `Error: ${error.message}`;
+    }
+    return "Something went wrong. Please try again later.";
   }
 }
 

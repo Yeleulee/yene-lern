@@ -26,7 +26,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      content: 'Hi there! I\'m your Yene Learn AI assistant. How can I help you today?',
+      content: 'Hi there! I\'m your Yene Learn AI assistant. How can I help you with your learning journey today?',
       sender: 'ai',
       timestamp: new Date(),
     },
@@ -73,10 +73,22 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
 
     try {
-      // Construct a prompt that includes context if available
+      // Construct a more comprehensive prompt with context
       let prompt = content;
+      
       if (videoContext) {
-        prompt = `I'm watching a video with ID: ${videoContext}. ${content}`;
+        // Get the last few messages for this context to provide conversation history
+        const contextMessages = messages
+          .filter(m => m.context === videoContext || !m.context)
+          .slice(-6) // Get the most recent 6 messages as context
+          .map(m => `${m.sender === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
+          .join('\n');
+          
+        prompt = `I'm watching a YouTube video with ID: ${videoContext}. 
+                  Here's our recent conversation about this video:
+                  ${contextMessages}
+                  
+                  My new question is: ${content}`;
       }
 
       // Check for network connectivity before making API call
@@ -87,18 +99,13 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Get AI response
       const response = await askGemini(prompt);
       
-      // If response starts with "I'm your Yene Learn AI assistant. While I'd normally connect" 
-      // that means we got a fallback response, so we should save that fact
-      const isFallbackResponse = response.startsWith("I'm your Yene Learn AI assistant. While I'd normally connect");
-      
       // Add AI message
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
         content: response,
         sender: 'ai',
         timestamp: new Date(),
-        context: videoContext,
-        isFallback: isFallbackResponse
+        context: videoContext
       };
 
       setMessages((prev) => [...prev, aiMessage]);
@@ -127,7 +134,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setMessages([
       {
         id: '1',
-        content: 'Hi there! I\'m your Yene Learn AI assistant. How can I help you today?',
+        content: 'Hi there! I\'m your Yene Learn AI assistant. How can I help you with your learning journey today?',
         sender: 'ai',
         timestamp: new Date(),
       },
