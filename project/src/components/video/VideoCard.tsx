@@ -153,11 +153,11 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, onSave, onUpdateStatus, on
 
   return (
     <div 
-      className="card group hover:transform hover:scale-[1.01] transition-all shadow-sm hover:shadow-md border border-gray-200 rounded-lg overflow-hidden"
+      className="card group hover:transform hover:scale-[1.01] transition-all shadow-sm hover:shadow-md border border-gray-200 rounded-lg overflow-hidden h-full flex flex-col"
       tabIndex={0}
       aria-label={`${video.title} ${isPartOfCourse ? 'course' : hasSegments ? 'segmented course' : 'course'}`}
     >
-      <div className="relative aspect-video overflow-hidden flex items-center justify-center bg-black">
+      <div className="relative aspect-video overflow-hidden flex items-center justify-center bg-black w-full">
         <img
           src={video.thumbnailUrl}
           alt=""
@@ -238,7 +238,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, onSave, onUpdateStatus, on
         )}
       </div>
 
-      <div className="flex flex-col p-4 h-[calc(100%-56.25%)]">
+      <div className="flex flex-col p-4 flex-grow">
         <div className="flex items-start gap-2 mb-1">
           <h3 className="font-medium text-gray-900 text-lg leading-tight line-clamp-2">
             <Link to={getVideoLink()} className="hover:text-primary-600 transition-colors">

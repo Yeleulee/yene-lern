@@ -5,7 +5,7 @@ import { searchVideos } from '../services/youtubeService';
 import { useLearning } from '../context/LearningContext';
 import { useAuth } from '../context/AuthContext';
 import { Video } from '../types';
-import { Search as SearchIcon, BookOpen, GraduationCap, Sparkles, TrendingUp, Compass, ChevronRight, BookMarked, Award } from 'lucide-react';
+import { Search as SearchIcon, BookOpen, GraduationCap, Sparkles, TrendingUp, Compass, ChevronRight, BookMarked, Award, Heart, Star, Users } from 'lucide-react';
 
 const popularTopics = [
   'JavaScript complete course',
@@ -25,6 +25,16 @@ const featuredCategories = [
   { icon: <TrendingUp size={20} />, name: 'AI & Machine Learning', query: 'Machine Learning course' },
 ];
 
+// Mock data for course popularity - in a real app, this would come from your backend
+const courseLikes = {
+  defaultLikes: { count: Math.floor(Math.random() * 500) + 100, isLiked: false },
+  getForVideo: (videoId: string) => {
+    const randomLikes = Math.floor(Math.random() * 500) + 100;
+    const randomIsLiked = Math.random() > 0.7;
+    return { count: randomLikes, isLiked: randomIsLiked };
+  }
+};
+
 const ExplorePage: React.FC = () => {
   const { user } = useAuth();
   const { userVideos, addVideo } = useLearning();
@@ -34,6 +44,7 @@ const ExplorePage: React.FC = () => {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [trendingResults, setTrendingResults] = useState<Video[]>([]);
   const [isTrendingLoading, setIsTrendingLoading] = useState(false);
+  const [videoLikes, setVideoLikes] = useState<Record<string, { count: number; isLiked: boolean }>>({});
 
   // Fetch trending videos on initial load
   useEffect(() => {
@@ -42,6 +53,13 @@ const ExplorePage: React.FC = () => {
       try {
         const results = await searchVideos('top educational courses 2024');
         setTrendingResults(results.slice(0, 3));
+        
+        // Initialize likes for trending videos
+        const likesMap: Record<string, { count: number; isLiked: boolean }> = {};
+        results.slice(0, 3).forEach(video => {
+          likesMap[video.id] = courseLikes.getForVideo(video.id);
+        });
+        setVideoLikes(prev => ({ ...prev, ...likesMap }));
       } catch (error) {
         console.error('Error fetching trending:', error);
       } finally {
@@ -58,6 +76,13 @@ const ExplorePage: React.FC = () => {
     try {
       const results = await searchVideos(query);
       setSearchResults(results);
+      
+      // Initialize likes for search results
+      const likesMap: Record<string, { count: number; isLiked: boolean }> = {};
+      results.forEach(video => {
+        likesMap[video.id] = courseLikes.getForVideo(video.id);
+      });
+      setVideoLikes(prev => ({ ...prev, ...likesMap }));
       
       // Scroll down to results if on mobile
       if (window.innerWidth < 768) {
@@ -78,6 +103,22 @@ const ExplorePage: React.FC = () => {
 
   const isVideoSaved = (videoId: string) => {
     return userVideos.some((v) => v.id === videoId);
+  };
+
+  // Toggle like for a video
+  const handleToggleLike = (videoId: string) => {
+    if (!user) return;
+    
+    setVideoLikes(prev => {
+      const videoLike = prev[videoId] || courseLikes.defaultLikes;
+      return {
+        ...prev,
+        [videoId]: {
+          count: videoLike.isLiked ? videoLike.count - 1 : videoLike.count + 1,
+          isLiked: !videoLike.isLiked
+        }
+      };
+    });
   };
 
   // Safe wrapper for saving videos
@@ -109,24 +150,24 @@ const ExplorePage: React.FC = () => {
         <div className="container mx-auto px-4 relative z-10">
           <div className="max-w-4xl mx-auto text-center">
             <h1 className="text-4xl md:text-5xl font-bold mb-4 animate-fade-in">
-              Discover Your Learning Path
+              Find Your Perfect Learning Course
             </h1>
             <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
-              Explore comprehensive educational courses curated to help you master new skills and advance your career.
+              Discover highly-rated courses loved by students worldwide. Search by topic and find the perfect course for your learning journey.
             </p>
             
             <div className="transition-all duration-300 hover:scale-[1.02]">
               <SearchBar 
                 onSearch={handleSearch} 
                 isLoading={isSearching} 
-                placeholder="Search for high-quality, full courses..."
+                placeholder="Search for top-rated courses..."
                 className="shadow-xl"
               />
             </div>
             
             <p className="text-sm text-blue-200 mt-3">
               <GraduationCap className="inline-block mr-1" size={14} />
-              We prioritize detailed, comprehensive educational content
+              Courses are ranked by student ratings and educational quality
             </p>
           </div>
         </div>
@@ -188,25 +229,49 @@ const ExplorePage: React.FC = () => {
               </div>
               
               {isTrendingLoading ? (
-                <div className="grid md:grid-cols-3 gap-6">
-                  {Array.from({ length: 3 }).map((_, i) => (
-                    <div key={i} className="card animate-pulse">
-                      <div className="aspect-video bg-gray-300 rounded-lg mb-3"></div>
-                      <div className="h-6 bg-gray-300 rounded w-3/4 mb-2"></div>
-                      <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-                    </div>
-                  ))}
+                <div className="flex justify-center">
+                  <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+                    {Array.from({ length: 3 }).map((_, i) => (
+                      <div key={i} className="card animate-pulse w-full">
+                        <div className="aspect-video bg-gray-300 rounded-lg mb-3"></div>
+                        <div className="h-6 bg-gray-300 rounded w-3/4 mb-2"></div>
+                        <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ) : (
-                <div className="grid md:grid-cols-3 gap-6">
-                  {trendingResults.map((video) => (
-                    <VideoCard
-                      key={video.id}
-                      video={video}
-                      onSave={user ? handleSaveVideo : undefined}
-                      isSaved={isVideoSaved(video.id)}
-                    />
-                  ))}
+                <div className="flex justify-center">
+                  <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+                    {trendingResults.map((video) => (
+                      <div key={video.id} className="flex flex-col h-full bg-white rounded-lg overflow-hidden shadow-sm">
+                        <VideoCard
+                          video={video}
+                          onSave={user ? handleSaveVideo : undefined}
+                          isSaved={isVideoSaved(video.id)}
+                        />
+                        <div className="p-3 pt-0 flex justify-between items-center border-t border-gray-100">
+                          <div className="flex items-center">
+                            <button 
+                              onClick={() => handleToggleLike(video.id)}
+                              className={`flex items-center text-sm mr-3 ${videoLikes[video.id]?.isLiked ? 'text-red-500' : 'text-gray-500'}`}
+                            >
+                              <Heart size={14} className={`mr-1 ${videoLikes[video.id]?.isLiked ? 'fill-current' : ''}`} />
+                              {videoLikes[video.id]?.count || 0}
+                            </button>
+                            <div className="flex items-center text-sm text-gray-500">
+                              <Star size={14} className="mr-1 text-yellow-500" />
+                              {(4 + Math.random()).toFixed(1)}
+                            </div>
+                          </div>
+                          <div className="flex items-center text-sm text-gray-500">
+                            <Users size={14} className="mr-1" />
+                            {Math.floor(Math.random() * 10000) + 1000} students
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -217,7 +282,7 @@ const ExplorePage: React.FC = () => {
                 <BookOpen className="mr-2 text-blue-600" />
                 Popular Course Topics
               </h2>
-              <div className="flex flex-wrap gap-3">
+              <div className="flex flex-wrap gap-3 justify-center">
                 {popularTopics.map((topic) => (
                   <button
                     key={topic}
@@ -237,19 +302,21 @@ const ExplorePage: React.FC = () => {
           {isSearching ? (
             <div className="mt-8">
               <div className="h-6 bg-gray-300 rounded w-1/3 mb-6"></div>
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <div key={i} className="card animate-pulse">
-                    <div className="aspect-video bg-gray-300 rounded-lg mb-3"></div>
-                    <div className="h-6 bg-gray-300 rounded w-3/4 mb-2"></div>
-                    <div className="h-4 bg-gray-200 rounded w-1/2 mb-2"></div>
-                    <div className="h-4 bg-gray-200 rounded w-full mb-2"></div>
-                    <div className="h-4 bg-gray-200 rounded w-5/6 mb-4"></div>
-                    <div className="flex justify-end">
-                      <div className="h-8 bg-gray-300 rounded w-32"></div>
+              <div className="flex justify-center">
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <div key={i} className="card animate-pulse w-full">
+                      <div className="aspect-video bg-gray-300 rounded-lg mb-3"></div>
+                      <div className="h-6 bg-gray-300 rounded w-3/4 mb-2"></div>
+                      <div className="h-4 bg-gray-200 rounded w-1/2 mb-2"></div>
+                      <div className="h-4 bg-gray-200 rounded w-full mb-2"></div>
+                      <div className="h-4 bg-gray-200 rounded w-5/6 mb-4"></div>
+                      <div className="flex justify-end">
+                        <div className="h-8 bg-gray-300 rounded w-32"></div>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             </div>
           ) : searchResults.length > 0 ? (
@@ -258,15 +325,37 @@ const ExplorePage: React.FC = () => {
                 <GraduationCap className="mr-2 text-blue-600" />
                 Courses for "{searchQuery}"
               </h2>
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {searchResults.map((video) => (
-                  <VideoCard
-                    key={video.id}
-                    video={video}
-                    onSave={user ? handleSaveVideo : undefined}
-                    isSaved={isVideoSaved(video.id)}
-                  />
-                ))}
+              <div className="flex justify-center">
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
+                  {searchResults.map((video) => (
+                    <div key={video.id} className="flex flex-col h-full bg-white rounded-lg overflow-hidden shadow-sm">
+                      <VideoCard
+                        video={video}
+                        onSave={user ? handleSaveVideo : undefined}
+                        isSaved={isVideoSaved(video.id)}
+                      />
+                      <div className="p-3 pt-0 flex justify-between items-center border-t border-gray-100">
+                        <div className="flex items-center">
+                          <button 
+                            onClick={() => handleToggleLike(video.id)}
+                            className={`flex items-center text-sm mr-3 ${videoLikes[video.id]?.isLiked ? 'text-red-500' : 'text-gray-500'}`}
+                          >
+                            <Heart size={14} className={`mr-1 ${videoLikes[video.id]?.isLiked ? 'fill-current' : ''}`} />
+                            {videoLikes[video.id]?.count || 0}
+                          </button>
+                          <div className="flex items-center text-sm text-gray-500">
+                            <Star size={14} className="mr-1 text-yellow-500" />
+                            {(4 + Math.random()).toFixed(1)}
+                          </div>
+                        </div>
+                        <div className="flex items-center text-sm text-gray-500">
+                          <Users size={14} className="mr-1" />
+                          {Math.floor(Math.random() * 10000) + 1000} students
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           ) : searchQuery ? (

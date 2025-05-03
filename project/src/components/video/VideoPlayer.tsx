@@ -68,7 +68,7 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(({
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
-  const playerIdRef = useRef(`youtube-player-${Math.random().toString(36).substr(2, 9)}`);
+  const playerIdRef = useRef(`youtube-player-${videoId || Math.random().toString(36).substr(2, 9)}`);
   
   // Add YouTube API script with improved initialization
   useEffect(() => {
@@ -117,210 +117,214 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(({
     loadYouTubeAPI();
   }, []);
   
-  // Create player instance - optimized to eliminate stuttering  
+  // Create player instance using direct iframe approach for more reliable playback
   useEffect(() => {
     if (!videoId) return;
     
-    let playerInitAttempts = 0;
-    const maxPlayerInitAttempts = 3;
-    let isDestroyed = false;
+    // Reference for cleanup
+    let timeUpdateInterval: NodeJS.Timeout | null = null;
     
-    // Create player container if it doesn't exist
-    if (!document.getElementById(playerIdRef.current) && playerContainerRef.current) {
-      const playerElement = document.createElement('div');
-      playerElement.id = playerIdRef.current;
-      playerElement.style.width = '100%';
-      playerElement.style.height = '100%';
-      playerElement.style.position = 'absolute';
-      playerElement.style.top = '0';
-      playerElement.style.left = '0';
+    // Use direct iframe approach for more reliable playback
+    if (playerContainerRef.current) {
+      // Clear existing content
       playerContainerRef.current.innerHTML = '';
-      playerContainerRef.current.appendChild(playerElement);
-    }
-    
-    // Function to initialize player when API is ready
-    const initPlayer = () => {
-      if (isDestroyed || !document.getElementById(playerIdRef.current)) return;
       
-      try {
-        // Clean up existing player instance
-        if (playerInstanceRef.current) {
-          if (playerInstanceRef.current.timeUpdateInterval) {
-            clearInterval(playerInstanceRef.current.timeUpdateInterval);
-            playerInstanceRef.current.timeUpdateInterval = null;
-          }
-          
+      // Create iframe directly instead of using YouTube API
+      const iframe = document.createElement('iframe');
+      iframe.id = playerIdRef.current;
+      iframe.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share";
+      iframe.allowFullscreen = true;
+      
+      // Set explicit styling for proper centering and sizing
+      Object.assign(iframe.style, {
+        position: 'absolute',
+        top: '0',
+        left: '0',
+        width: '100%',
+        height: '100%',
+        border: 'none'
+      });
+      
+      // Set the source with all required parameters
+      const params = new URLSearchParams({
+        autoplay: '1',
+        controls: '1',
+        rel: '0',
+        playsinline: '1',
+        modestbranding: '1',
+        enablejsapi: '1',
+        origin: window.location.origin,
+        iv_load_policy: '3',
+        showinfo: '0'
+      });
+      
+      iframe.src = `https://www.youtube.com/embed/${videoId}?${params.toString()}`;
+      
+      // Add to container
+      playerContainerRef.current.appendChild(iframe);
+      
+      // Track iframe as our player instance
+      playerInstanceRef.current = {
+        iframe,
+        getCurrentTime: () => currentTime,
+        getDuration: () => duration,
+        seekTo: (time: number) => {
           try {
-            playerInstanceRef.current.destroy();
+            // Send message to iframe to seek to specific time
+            iframe.contentWindow?.postMessage(JSON.stringify({
+              event: 'command',
+              func: 'seekTo',
+              args: [time, true]
+            }), '*');
           } catch (e) {
-            console.error('Error destroying previous player:', e);
+            console.error('Error seeking video:', e);
           }
+        },
+        playVideo: () => {
+          try {
+            iframe.contentWindow?.postMessage(JSON.stringify({
+              event: 'command',
+              func: 'playVideo',
+              args: []
+            }), '*');
+          } catch (e) {
+            console.error('Error playing video:', e);
+          }
+        },
+        pauseVideo: () => {
+          try {
+            iframe.contentWindow?.postMessage(JSON.stringify({
+              event: 'command',
+              func: 'pauseVideo',
+              args: []
+            }), '*');
+          } catch (e) {
+            console.error('Error pausing video:', e);
+          }
+        }
+      };
+      
+      // Indicate that the player is loaded
+      setIsLoaded(true);
+      
+      // Set up message handler
+      const handleMessage = (event: MessageEvent) => {
+        if (!event.origin.includes('youtube.com')) return;
+        
+        try {
+          const data = typeof event.data === 'string' 
+            ? JSON.parse(event.data) 
+            : event.data;
           
-          playerInstanceRef.current = null;
-        }
-        
-        // Only attempt to initialize if YT is available
-        if (!window.YT || !window.YT.Player) {
-          if (playerInitAttempts < maxPlayerInitAttempts) {
-            playerInitAttempts++;
-            setTimeout(initPlayer, 1000);
-          } else {
-            setError('Failed to load YouTube player. Please try again.');
-          }
-          return;
-        }
-        
-        playerInstanceRef.current = new window.YT.Player(playerIdRef.current, {
-          videoId,
-          height: '100%',
-          width: '100%',
-          playerVars: {
-            autoplay: 1,
-            controls: 1,
-            rel: 0,
-            playsinline: 1,
-            modestbranding: 1,
-            origin: window.location.origin,
-            fs: 1, // Enable fullscreen
-            iv_load_policy: 3, // Hide annotations
-            enablejsapi: 1, // Enable JS API
-            mute: 0 // Ensure not muted
-          },
-          events: {
-            onReady: (event) => {
-              console.log('YouTube player ready');
-              setIsLoaded(true);
-              
-              // Check if there's a saved position for this video
-              try {
-                const savedPositions = JSON.parse(localStorage.getItem('video_positions') || '{}');
-                const lastPosition = savedPositions[videoId];
-                if (lastPosition) {
-                  // Only seek if we have a saved position
-                  event.target.seekTo(lastPosition, true);
+          // Handle state changes
+          if (data.event === 'onStateChange' || 
+              (data.event === 'infoDelivery' && data.info && data.info.playerState !== undefined)) {
+            // Extract state
+            const playerState = data.event === 'onStateChange' ? data.info : data.info.playerState;
+            const isPlaying = playerState === 1; // 1 is playing state
+            
+            setIsVideoPlaying(isPlaying);
+            
+            // Start or stop time update interval
+            if (isPlaying && !timeUpdateInterval) {
+              timeUpdateInterval = setInterval(() => {
+                try {
+                  iframe.contentWindow?.postMessage(JSON.stringify({
+                    event: 'command',
+                    func: 'getCurrentTime',
+                    args: []
+                  }), '*');
+                } catch (e) {
+                  console.error('Error requesting current time:', e);
                 }
-                // Don't call playVideo here - let autoplay handle it
-              } catch (e) {
-                console.error('Error seeking to saved position:', e);
-              }
-            },
-            onStateChange: (event) => {
-              // YouTube player states:
-              // -1 (unstarted), 0 (ended), 1 (playing), 2 (paused), 3 (buffering), 5 (video cued)
-              console.log('Player state changed to:', event.data);
-              
-              const isPlaying = event.data === window.YT.PlayerState.PLAYING;
-              
-              // Only update state if it actually changed to avoid re-renders
-              if (isVideoPlaying !== isPlaying) {
-                setIsVideoPlaying(isPlaying);
-              }
-              
-              // Update time in intervals when playing
-              if (isPlaying && !playerInstanceRef.current.timeUpdateInterval) {
-                console.log('Starting time update interval');
-                playerInstanceRef.current.timeUpdateInterval = setInterval(() => {
-                  try {
-                    if (!playerInstanceRef.current || !playerInstanceRef.current.getCurrentTime) return;
-                    
-                    const currentTime = playerInstanceRef.current.getCurrentTime();
-                    const duration = playerInstanceRef.current.getDuration();
-                    
-                    // Always update current time - this is needed for the UI
-                    setCurrentTime(currentTime);
-                    
-                    if (duration !== videoDuration && duration > 0) {
-                      setDuration(duration);
-                    }
-                     
-                    if (onTimeUpdate) {
-                      onTimeUpdate(currentTime, duration);
-                    }
-                     
-                    // Save position every 5 seconds
-                    if (currentTime > 0 && Math.floor(currentTime) % 5 === 0) {
-                      try {
-                        const positions = JSON.parse(localStorage.getItem('video_positions') || '{}');
-                        positions[videoId] = currentTime;
-                        localStorage.setItem('video_positions', JSON.stringify(positions));
-                      } catch (e) {
-                        // Silent error
-                      }
-                    }
-                  } catch (e) {
-                    // Silent fail
-                  }
-                }, 1000);
-              } else if (!isPlaying && playerInstanceRef.current.timeUpdateInterval) {
-                console.log('Clearing time update interval');
-                clearInterval(playerInstanceRef.current.timeUpdateInterval);
-                playerInstanceRef.current.timeUpdateInterval = null;
-              }
-            },
-            onError: (event) => {
-              console.error('YouTube player error:', event.data);
-              setError('Failed to play video');
+              }, 1000);
+            } else if (!isPlaying && timeUpdateInterval) {
+              clearInterval(timeUpdateInterval);
+              timeUpdateInterval = null;
             }
           }
-        });
-      } catch (e) {
-        console.error('Error initializing YouTube player:', e);
-        setError('Failed to initialize video player');
-      }
-    };
-    
-    // Create function to load YouTube API and initialize player
-    const loadAndInitPlayer = async () => {
-      // Wait for API to load if needed
-      if (!window.YT || !window.YT.Player) {
-        // Wait for next tick to ensure API registration is complete
-        await new Promise(resolve => setTimeout(resolve, 0));
-        
-        // Store original callback and add initialization
-        const originalCallback = window.onYouTubeIframeAPIReady;
-        window.onYouTubeIframeAPIReady = () => {
-          if (originalCallback) originalCallback();
-          console.log('YouTube API loaded, initializing player...');
-          initPlayer();
-        };
-        
-        // Don't wait longer than 5 seconds
-        setTimeout(() => {
-          if (!window.YT || !window.YT.Player) {
-            console.error('YouTube API failed to load within timeout');
-            setError('Failed to load video player. Please try again.');
+          
+          // Update current time and duration
+          if (data.event === 'infoDelivery' && data.info) {
+            if (data.info.currentTime !== undefined) {
+              setCurrentTime(data.info.currentTime);
+              
+              if (data.info.duration !== undefined) {
+                setDuration(data.info.duration);
+              }
+              
+              if (onTimeUpdate) {
+                onTimeUpdate(data.info.currentTime, data.info.duration || duration);
+              }
+            }
           }
-        }, 5000);
-      } else {
-        // API already loaded, initialize immediately
-        initPlayer();
-      }
-    };
-    
-    // Start the process
-    loadAndInitPlayer();
-    
-    // Clean up on unmount
-    return () => {
-      isDestroyed = true;
-      if (playerInstanceRef.current) {
-        if (playerInstanceRef.current.timeUpdateInterval) {
-          clearInterval(playerInstanceRef.current.timeUpdateInterval);
-        }
-        try {
-          playerInstanceRef.current.destroy();
         } catch (e) {
-          console.error('Error destroying player:', e);
+          console.error('Error handling YouTube message:', e);
         }
-      }
-    };
-  }, [videoId, onTimeUpdate]);
+      };
+      
+      window.addEventListener('message', handleMessage);
+      
+      // Send initial command to start playing
+      setTimeout(() => {
+        try {
+          iframe.contentWindow?.postMessage(JSON.stringify({
+            event: 'command',
+            func: 'playVideo',
+            args: []
+          }), '*');
+        } catch (e) {
+          console.error('Error sending initial play command:', e);
+        }
+      }, 1000);
+      
+      // Return cleanup function
+      return () => {
+        window.removeEventListener('message', handleMessage);
+        if (timeUpdateInterval) {
+          clearInterval(timeUpdateInterval);
+        }
+      };
+    }
+  }, [videoId, onTimeUpdate, duration]);
   
   // Expose methods to parent components through ref
   useImperativeHandle(ref, () => ({
     seekTo: (time: number) => {
-      if (playerInstanceRef.current) {
-        playerInstanceRef.current.seekTo(time, true);
+      try {
+        // Find the iframe directly using its ID
+        const iframe = document.getElementById(playerIdRef.current);
+        
+        if (iframe && iframe.contentWindow) {
+          // First use the standard YouTube API approach
+          iframe.contentWindow.postMessage(JSON.stringify({
+            event: 'command',
+            func: 'seekTo',
+            args: [time, true]
+          }), '*');
+          console.log('Sent seek command to YouTube iframe via ref');
+          return true;
+        } else {
+          console.warn('Cannot find YouTube iframe for seeking');
+          
+          // Try a different approach - find the first YouTube iframe
+          const iframes = document.querySelectorAll('iframe');
+          for (const iframe of iframes) {
+            if (iframe.src && iframe.src.includes('youtube.com/embed/')) {
+              iframe.contentWindow?.postMessage(JSON.stringify({
+                event: 'command',
+                func: 'seekTo',
+                args: [time, true]
+              }), '*');
+              console.log('Sent seek command to found YouTube iframe');
+              return true;
+            }
+          }
+        }
+        return false;
+      } catch (e) {
+        console.error('Error in seekTo:', e);
+        return false;
       }
     },
     play: () => {
@@ -374,17 +378,22 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(({
     };
   }, [videoId]);
   
+  // Use a much simpler, direct approach that's guaranteed to work
   return (
-    <div 
-      className={`flex flex-col bg-black rounded-lg overflow-hidden relative video-player-container ${className}`}
-    >
-      <div className="relative aspect-video bg-black flex items-center justify-center">
-        {/* Loading indicator */}
-        {!isLoaded && (
-          <div className="absolute inset-0 flex items-center justify-center bg-gray-900 z-10">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-          </div>
-        )}
+    <div className={`video-player-container w-full ${className}`} style={{ aspectRatio: '16/9' }}>
+      <div className="relative w-full h-full flex justify-center items-center overflow-hidden">
+        {/* Static iframe approach for maximum compatibility */}
+        <div className="w-full h-full">
+          <iframe
+            id={playerIdRef.current}
+            src={`https://www.youtube.com/embed/${videoId}?autoplay=1&controls=1&rel=0&modestbranding=1&playsinline=1&enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}`}
+            className="absolute inset-0 w-full h-full"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+            title="YouTube video player"
+            style={{ border: 'none' }}
+          ></iframe>
+        </div>
         
         {/* YouTube direct link */}
         <a 
@@ -399,70 +408,13 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(({
           </svg>
           YouTube
         </a>
-        
-        {/* Error message */}
-        {error && (
-          <div className="absolute inset-0 flex items-center justify-center bg-gray-900 z-20">
-            <div className="text-center p-4">
-              <p className="text-white mb-4">{error}</p>
-              <a
-                href={`https://www.youtube.com/watch?v=${videoId}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition-colors"
-              >
-                Watch on YouTube
-              </a>
-            </div>
-          </div>
-        )}
-        
-        {/* Player container */}
-        <div 
-          ref={playerContainerRef} 
-          className="absolute inset-0 w-full h-full bg-black flex items-center justify-center"
-          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }} 
-        ></div>
       </div>
       
-      {/* Timeline with segment markers */}
-      {isLoaded && showSegmentMarkers && segments.length > 0 && (
-        <div className="bg-gray-900 text-white p-2 -mt-[2px] border-t-0">
-          {/* Timeline with segment markers */}
-          <div className="relative h-6 mb-1">
-            {/* Progress bar background */}
-            <div className="absolute w-full h-2 bg-gray-700 rounded top-2"></div>
-            
-            {/* Current progress */}
-            <div 
-              className="absolute h-2 bg-blue-500 rounded top-2" 
-              style={{ width: `${duration ? (currentTime / duration) * 100 : 0}%` }}
-            ></div>
-            
-            {/* Segment markers */}
-            {segments.map((segment, index) => (
-              <div 
-                key={index}
-                className="absolute w-1 h-4 bg-white rounded cursor-pointer top-1 transform transition-transform hover:scale-y-125"
-                style={{ 
-                  left: `${duration ? (segment.startTime / duration) * 100 : 0}%`,
-                  backgroundColor: segment.startTime <= currentTime ? '#10B981' : 'white'
-                }}
-                onClick={() => {
-                  if (playerInstanceRef.current) {
-                    playerInstanceRef.current.seekTo(segment.startTime, true);
-                  }
-                }}
-                title={segment.title}
-              ></div>
-            ))}
-          </div>
-          
-          {/* Time display */}
-          <div className="flex justify-between text-xs">
-            <span>{formatTime(currentTime)}</span>
-            <span>{formatTime(duration)}</span>
-          </div>
+      {/* Simple time display */}
+      {showSegmentMarkers && segments && segments.length > 0 && (
+        <div className="bg-gray-900 text-white p-2 text-xs flex justify-between">
+          <span>{formatTime(currentTime)}</span>
+          <span>{formatTime(duration)}</span>
         </div>
       )}
     </div>

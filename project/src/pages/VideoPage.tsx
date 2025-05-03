@@ -206,35 +206,72 @@ const VideoPage: React.FC = () => {
     
     // If ref method fails, try more specific iframe selection
     try {
-      // Use a more specific selector to find the right iframe
-      const videoContainers = document.querySelectorAll('.video-player-container');
-      let targetIframe = null;
+      // Load YouTube API if not already loaded
+      if (!window.YT) {
+        console.log('YouTube API not loaded yet, loading script...');
+        const tag = document.createElement('script');
+        tag.src = 'https://www.youtube.com/iframe_api';
+        const firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
+        
+        // Try seeking after a short delay to allow API to load
+        setTimeout(() => handleSeek(time), 1000);
+        return;
+      }
       
-      if (videoContainers.length > 0) {
-        // If we have container classes, use them
-        targetIframe = videoContainers[0].querySelector('iframe');
+      // Find the iframe by its ID or class
+      const playerIframe = document.getElementById(`youtube-player-${videoId}`) || 
+                          document.querySelector('.video-player-container iframe');
+      
+      if (playerIframe) {
+        console.log('Found iframe for seeking:', playerIframe);
+        
+        // Try using direct iframe postMessage first
+        try {
+          playerIframe.contentWindow?.postMessage(JSON.stringify({
+            event: 'command',
+            func: 'seekTo',
+            args: [time, true]
+          }), '*');
+          console.log('Sent seek command via postMessage');
+        } catch (e) {
+          console.error('Error using postMessage seeking:', e);
+        }
+        
+        // Also try the YouTube API approach as backup
+        try {
+          // Get iframe ID
+          const iframeId = playerIframe.id;
+          if (iframeId && window.YT && window.YT.get) {
+            const ytPlayer = window.YT.get(iframeId);
+            if (ytPlayer && typeof ytPlayer.seekTo === 'function') {
+              ytPlayer.seekTo(time, true);
+              console.log('Sought using YT.get API');
+            }
+          }
+        } catch (e) {
+          console.error('Error using YT.get seeking:', e);
+        }
       } else {
-        // Fallback to the first iframe in the VideoPlayer component
+        // Last resort - try to find ALL iframes and use the first YouTube one
+        console.log('No specific iframe found, trying all iframes...');
         const allIframes = document.querySelectorAll('iframe');
         for (let i = 0; i < allIframes.length; i++) {
           const iframe = allIframes[i];
-          // Check if this iframe is likely our video player (based on src)
           if (iframe.src && iframe.src.includes('youtube.com/embed/')) {
-            targetIframe = iframe;
-            break;
+            try {
+              iframe.contentWindow?.postMessage(JSON.stringify({
+                event: 'command',
+                func: 'seekTo',
+                args: [time, true]
+              }), '*');
+              console.log('Sent seek command to iframe:', iframe);
+              break;
+            } catch (e) {
+              console.error('Error seeking iframe:', e);
+            }
           }
         }
-      }
-      
-      if (targetIframe && targetIframe.contentWindow) {
-        console.log('Using fallback iframe method to seek');
-        targetIframe.contentWindow.postMessage(JSON.stringify({
-          event: 'command',
-          func: 'seekTo',
-          args: [time, true]
-        }), '*');
-      } else {
-        console.warn('Could not find appropriate iframe for seeking');
       }
     } catch (error) {
       console.error('Error during seek operation:', error);
@@ -329,37 +366,31 @@ const VideoPage: React.FC = () => {
       {video && (
         <div className="flex flex-col lg:flex-row gap-6">
           {/* Video player and content section */}
-          <div className="lg:w-2/3">
-            {/* Video player */}
-            <div className="rounded-lg overflow-hidden mb-4 bg-black flex items-center justify-center">
-              {videoSegments.length > 0 ? (
-                <SegmentedVideoPlayer
-                  videoId={videoId}
-                  segments={videoSegments}
-                  onTimeUpdate={handleTimeUpdate}
-                  ref={playerRef}
-                  className="w-full"
-                />
-              ) : (
+          <div className="lg:w-2/3 flex flex-col">
+            {/* Video player - centered with explicit styling */}
+            <div className="w-full mb-4 bg-black rounded-lg overflow-hidden flex justify-center items-center">
+              <div className="w-full max-w-3xl mx-auto">
                 <VideoPlayer
                   videoId={videoId}
                   onTimeUpdate={handleTimeUpdate}
                   ref={playerRef}
                   segments={videoSegments}
-                  showSegmentMarkers={true}
+                  showSegmentMarkers={videoSegments.length > 0}
                   autoplay={true}
                 />
-              )}
+              </div>
             </div>
 
-            <h1 className="text-2xl md:text-3xl font-bold mb-2">{video.title}</h1>
-            <p className="text-gray-600 mb-2">{video.channelTitle}</p>
-            
-            {!isVideoSaved && user && (
-              <div className="mb-6">
-                <Button onClick={handleSaveVideo}>Save to My Learning</Button>
-              </div>
-            )}
+            <div className="max-w-3xl mx-auto w-full">
+              <h1 className="text-2xl md:text-3xl font-bold mb-2">{video.title}</h1>
+              <p className="text-gray-600 mb-2">{video.channelTitle}</p>
+              
+              {!isVideoSaved && user && (
+                <div className="mb-6">
+                  <Button onClick={handleSaveVideo}>Save to My Learning</Button>
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="space-y-6 lg:w-1/3">
@@ -392,25 +423,29 @@ const VideoPage: React.FC = () => {
             </div>
             
             {/* Video segments list */}
-            {videoSegments.length > 0 && (
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
-                <h2 className="text-lg font-semibold mb-4">Video Segments</h2>
-                <div className="space-y-2">
-                  {videoSegments.map((segment, index) => (
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
+              <h2 className="text-lg font-semibold mb-4">Video Segments</h2>
+              <div className="space-y-2">
+                {videoSegments.length > 0 ? (
+                  videoSegments.map((segment, index) => (
                     <button
                       key={index}
                       onClick={() => handleSeek(segment.startTime)}
                       className="w-full text-left p-2 rounded hover:bg-gray-100 transition-colors flex items-center"
                     >
-                      <span className="text-sm text-gray-500 mr-2">
+                      <span className="min-w-[40px] text-sm text-gray-500 mr-2">
                         {formatTime(segment.startTime)}
                       </span>
                       <span className="flex-1 text-sm">{segment.title}</span>
                     </button>
-                  ))}
-                </div>
+                  ))
+                ) : (
+                  <div className="text-center py-4 text-gray-500">
+                    No segments found for this video
+                  </div>
+                )}
               </div>
-            )}
+            </div>
           </div>
         </div>
       )}
