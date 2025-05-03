@@ -6,7 +6,8 @@ import {
   signOut, 
   signInWithGoogle, 
   getCurrentUser,
-  updateUserProfile
+  updateUserProfile,
+  initAuthStateListener
 } from '../services/firebaseService';
 
 interface AuthContextType {
@@ -22,28 +23,78 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const AUTH_USER_KEY = 'yene_learn_auth_user';
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Function to persist user in localStorage
+  const persistUser = (userData: User | null) => {
+    if (userData) {
+      localStorage.setItem(AUTH_USER_KEY, JSON.stringify(userData));
+    } else {
+      localStorage.removeItem(AUTH_USER_KEY);
+    }
+  };
 
   // Check authentication state on mount and when auth changes
   useEffect(() => {
-    // Get the current Firebase authenticated user
-    const currentUser = getCurrentUser();
-    if (currentUser) {
-      setUser(currentUser);
-    }
-    setLoading(false);
+    const checkAuth = async () => {
+      try {
+        setLoading(true);
+        
+        // First try to get user from localStorage for immediate UI response
+        const storedUser = localStorage.getItem(AUTH_USER_KEY);
+        if (storedUser) {
+          setUser(JSON.parse(storedUser));
+        }
+        
+        // Then verify with Firebase
+        const firebaseUser = getCurrentUser();
+        
+        if (firebaseUser) {
+          // Update user with latest from Firebase if needed
+          setUser(firebaseUser);
+          persistUser(firebaseUser);
+        } else if (storedUser) {
+          // If Firebase doesn't have the user but localStorage does,
+          // this means the session expired - clear localStorage
+          localStorage.removeItem(AUTH_USER_KEY);
+          setUser(null);
+        }
+      } catch (error) {
+        console.error('Error checking authentication:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    // Perform initial auth check
+    checkAuth();
+    
+    // Set up a periodic check every 5 minutes to verify authentication
+    const intervalId = setInterval(() => {
+      const currentUser = getCurrentUser();
+      if (!currentUser && user) {
+        // If session expired, log the user out
+        setUser(null);
+        persistUser(null);
+      }
+    }, 5 * 60 * 1000); // 5 minutes
+    
+    return () => clearInterval(intervalId);
   }, []);
 
   const login = async (email: string, password: string) => {
     try {
       setLoading(true);
       setError(null);
-      const user = await signIn(email, password);
-      if (user) {
-        setUser(user);
+      const userData = await signIn(email, password);
+      if (userData) {
+        setUser(userData);
+        persistUser(userData);
       } else {
         throw new Error('Failed to login');
       }
@@ -60,9 +111,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       setLoading(true);
       setError(null);
-      const user = await signInWithGoogle();
-      if (user) {
-        setUser(user);
+      const userData = await signInWithGoogle();
+      if (userData) {
+        setUser(userData);
+        persistUser(userData);
       } else {
         throw new Error('Failed to login with Google');
       }
@@ -79,9 +131,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       setLoading(true);
       setError(null);
-      const user = await signUp(email, password);
-      if (user) {
-        setUser(user);
+      const userData = await signUp(email, password);
+      if (userData) {
+        setUser(userData);
+        persistUser(userData);
       } else {
         throw new Error('Failed to register');
       }
@@ -99,6 +152,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(true);
       await signOut();
       setUser(null);
+      persistUser(null);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'An error occurred during logout';
       setError(errorMessage);
@@ -115,6 +169,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const updatedUser = await updateUserProfile(userProfile);
       if (updatedUser) {
         setUser(updatedUser);
+        persistUser(updatedUser);
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'An error occurred updating profile';

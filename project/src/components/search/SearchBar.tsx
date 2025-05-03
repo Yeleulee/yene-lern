@@ -6,9 +6,16 @@ import Button from '../ui/Button';
 interface SearchBarProps {
   onSearch: (query: string) => void;
   isLoading?: boolean;
+  placeholder?: string;
+  className?: string;
 }
 
-const SearchBar: React.FC<SearchBarProps> = ({ onSearch, isLoading = false }) => {
+const SearchBar: React.FC<SearchBarProps> = ({ 
+  onSearch, 
+  isLoading = false, 
+  placeholder = "Search for educational videos...",
+  className = ""
+}) => {
   const [query, setQuery] = useState('');
 
   const handleSubmit = (e: FormEvent) => {
@@ -19,15 +26,15 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch, isLoading = false }) =>
   };
 
   return (
-    <form onSubmit={handleSubmit} className="w-full max-w-3xl mx-auto">
+    <form onSubmit={handleSubmit} className={`w-full max-w-3xl mx-auto ${className}`}>
       <div className="flex items-center rounded-lg shadow-md bg-white overflow-hidden">
         <Input
           type="text"
-          placeholder="Search for educational videos..."
+          placeholder={placeholder}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           className="border-0 shadow-none focus:ring-0 text-base h-12"
-          aria-label="Search for educational videos"
+          aria-label={placeholder}
         />
         <Button
           type="submit"

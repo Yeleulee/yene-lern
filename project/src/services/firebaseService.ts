@@ -10,6 +10,7 @@ import {
   setPersistence,
   browserLocalPersistence,
   updateProfile as firebaseUpdateProfile,
+  onAuthStateChanged,
   AuthErrorCodes
 } from 'firebase/auth';
 import { getFirestore, collection, doc, getDoc, getDocs, setDoc, updateDoc, query, where, orderBy, limit, increment, Timestamp, serverTimestamp, deleteDoc } from 'firebase/firestore';
@@ -35,9 +36,30 @@ const storage = getStorage(app);
 const googleProvider = new GoogleAuthProvider();
 
 // Set persistence to LOCAL (survive page refresh)
-setPersistence(auth, browserLocalPersistence).catch((error) => {
-  console.error("Error setting auth persistence:", error);
-});
+setPersistence(auth, browserLocalPersistence)
+  .then(() => {
+    console.log("Firebase auth persistence set to LOCAL");
+  })
+  .catch((error) => {
+    console.error("Error setting auth persistence:", error);
+  });
+
+// Listen for auth state changes
+export const initAuthStateListener = (callback: (user: User | null) => void) => {
+  return onAuthStateChanged(auth, (firebaseUser) => {
+    if (firebaseUser) {
+      const user: User = {
+        uid: firebaseUser.uid,
+        email: firebaseUser.email || '',
+        displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || '',
+        photoURL: firebaseUser.photoURL || undefined
+      };
+      callback(user);
+    } else {
+      callback(null);
+    }
+  });
+};
 
 // Email/Password Authentication
 export async function signIn(email: string, password: string): Promise<User | null> {

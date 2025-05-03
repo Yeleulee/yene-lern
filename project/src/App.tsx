@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Header from './components/layout/Header';
 import HomePage from './pages/HomePage';
@@ -35,6 +35,33 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
+// Page transition wrapper to prevent white flashes
+const PageTransitionWrapper = ({ children }: { children: React.ReactNode }) => {
+  const location = useLocation();
+  
+  // Apply page transition effect whenever location changes
+  useEffect(() => {
+    // Add "no-fouc" class to prevent Flash of Unstyled Content
+    document.documentElement.classList.add('no-fouc');
+    
+    // Small timeout to ensure the transition effect is visible
+    const timer = setTimeout(() => {
+      document.documentElement.classList.remove('no-fouc');
+      document.documentElement.classList.add('fouc-ready');
+      
+      // Scroll to top on page change
+      window.scrollTo(0, 0);
+    }, 50);
+    
+    return () => {
+      clearTimeout(timer);
+      document.documentElement.classList.remove('fouc-ready');
+    };
+  }, [location.pathname]);
+  
+  return <div className="page-transition-wrapper">{children}</div>;
+};
+
 // ChatWidget container that respects current route
 const ChatWidgetContainer = () => {
   const location = useLocation();
@@ -56,40 +83,42 @@ function App() {
             <LearningStatsProvider>
               <div className="flex flex-col min-h-screen">
                 <Header />
-                <main className="flex-grow">
-                  <Routes>
-                    <Route path="/" element={<HomePage />} />
-                    <Route path="/login" element={<LoginPage />} />
-                    <Route path="/signup" element={<SignupPage />} />
-                    <Route 
-                      path="/dashboard" 
-                      element={
-                        <ProtectedRoute>
-                          <DashboardPage />
-                        </ProtectedRoute>
-                      } 
-                    />
-                    <Route path="/explore" element={<ExplorePage />} />
-                    <Route path="/video/:videoId" element={<VideoPage />} />
-                    <Route path="/course/:courseId" element={<CoursePage />} />
-                    <Route 
-                      path="/my-learning" 
-                      element={
-                        <ProtectedRoute>
-                          <MyLearningPage />
-                        </ProtectedRoute>
-                      } 
-                    />
-                    <Route 
-                      path="/profile" 
-                      element={
-                        <ProtectedRoute>
-                          <ProfilePage />
-                        </ProtectedRoute>
-                      } 
-                    />
-                    <Route path="/gemini-test" element={<GeminiTestPage />} />
-                  </Routes>
+                <main className="flex-grow main-content">
+                  <PageTransitionWrapper>
+                    <Routes>
+                      <Route path="/" element={<HomePage />} />
+                      <Route path="/login" element={<LoginPage />} />
+                      <Route path="/signup" element={<SignupPage />} />
+                      <Route 
+                        path="/dashboard" 
+                        element={
+                          <ProtectedRoute>
+                            <DashboardPage />
+                          </ProtectedRoute>
+                        } 
+                      />
+                      <Route path="/explore" element={<ExplorePage />} />
+                      <Route path="/video/:videoId" element={<VideoPage />} />
+                      <Route path="/course/:courseId" element={<CoursePage />} />
+                      <Route 
+                        path="/my-learning" 
+                        element={
+                          <ProtectedRoute>
+                            <MyLearningPage />
+                          </ProtectedRoute>
+                        } 
+                      />
+                      <Route 
+                        path="/profile" 
+                        element={
+                          <ProtectedRoute>
+                            <ProfilePage />
+                          </ProtectedRoute>
+                        } 
+                      />
+                      <Route path="/gemini-test" element={<GeminiTestPage />} />
+                    </Routes>
+                  </PageTransitionWrapper>
                 </main>
 
                 {/* Global Chat Widget */}

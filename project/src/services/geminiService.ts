@@ -1,4 +1,4 @@
-import { VideoSummary } from '../types';
+import { VideoSummary } from '../types/index';
 
 // Use the provided API key
 const API_KEY = "AIzaSyAVfoFGXM_wywyApXziZGMoP5wrsYhOsDI";
@@ -12,15 +12,42 @@ if (API_KEY) {
 }
 console.log('Environment variables available:', Object.keys(import.meta.env).filter(key => key.startsWith('VITE_')));
 
+// Run a quick initialization test on script load
+(async () => {
+  console.log('Running initialization test for Gemini API...');
+  try {
+    const result = await testGeminiConnection();
+    console.log('Initial connection test result:', result);
+    
+    if (!result.success) {
+      console.log('Attempting compatibility check...');
+      const compatResult = await checkGeminiCompatibility();
+      console.log('Compatibility check result:', compatResult);
+    }
+  } catch (error) {
+    console.error('Error during initialization test:', error);
+  }
+})();
+
 // Define potential API endpoints to try
 const API_ENDPOINTS = {
   beta: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent',
   v1: 'https://generativelanguage.googleapis.com/v1/models/gemini-1.0-pro:generateContent',
-  v1beta15: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent'
+  v1beta15: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent',
+  v1beta3: 'https://generativelanguage.googleapis.com/v1beta3/models/gemini-pro:generateContent',
+  // Adding more fallback endpoints
+  gemini15: 'https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent',
+  gemini10: 'https://generativelanguage.googleapis.com/v1/models/gemini-1.0-pro:generateContent'
 };
 
-// Start with beta endpoint - will be updated if compatibility check finds a better one
-let API_URL = API_ENDPOINTS.beta;
+// Try to get API endpoint from localStorage if previously set
+let API_URL = localStorage.getItem('gemini_api_endpoint') || API_ENDPOINTS.v1;
+
+// Make sure the saved endpoint is still valid
+if (!Object.values(API_ENDPOINTS).includes(API_URL)) {
+  API_URL = API_ENDPOINTS.v1;
+  localStorage.removeItem('gemini_api_endpoint');
+}
 
 // Add exponential backoff retry mechanism for API requests
 async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 3): Promise<Response> {
@@ -180,75 +207,118 @@ export async function askGemini(question: string): Promise<string> {
   
   User question: ${question}`;
 
-  console.log('Sending request to Gemini API...');
+  console.log('Sending request to Gemini API endpoint:', API_URL);
   
-  const response = await fetchWithRetry(`${API_URL}?key=${API_KEY}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      contents: [
-        {
-          parts: [
+  // Try multiple endpoints if the first one fails
+  let endpoints = [API_URL];
+  
+  // Add fallback endpoints if the current one isn't already being used
+  Object.values(API_ENDPOINTS).forEach(endpoint => {
+    if (!endpoints.includes(endpoint)) {
+      endpoints.push(endpoint);
+    }
+  });
+  
+  let lastError = null;
+  
+  // Try each endpoint until one works
+  for (const endpoint of endpoints) {
+    try {
+      console.log(`Trying endpoint: ${endpoint}`);
+      
+      const response = await fetchWithRetry(`${endpoint}?key=${API_KEY}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [
             {
-              text: systemPrompt,
+              parts: [
+                {
+                  text: systemPrompt,
+                },
+              ],
             },
           ],
-        },
-      ],
-      generationConfig: {
-        temperature: 0.7,
-        topP: 0.95,
-        topK: 40
+          generationConfig: {
+            temperature: 0.7,
+            topP: 0.95,
+            topK: 40,
+            maxOutputTokens: 1024 // Add a max output token limit to ensure we get a response
+          }
+        }),
+      }, 2); // Try twice per endpoint
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error(`Gemini API error with endpoint ${endpoint}:`, errorData);
+        
+        if (response.status === 400) {
+          lastError = new Error("Your request couldn't be processed. It may contain content that can't be addressed.");
+          continue; // Try next endpoint
+        }
+        
+        if (response.status === 403 || response.status === 401) {
+          lastError = new Error("API authentication error: The API key is invalid or has insufficient permissions.");
+          continue; // Try next endpoint
+        }
+        
+        if (response.status === 429) {
+          lastError = new Error("Rate limit exceeded. The API is receiving too many requests. Please try again in a few moments.");
+          continue; // Try next endpoint
+        }
+        
+        lastError = new Error(`API error (${response.status}): ${errorData.error?.message || response.statusText}`);
+        continue; // Try next endpoint
       }
-    }),
-  });
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    console.error('Gemini API error:', errorData);
-    
-    if (response.status === 400) {
-      throw new Error("Your request couldn't be processed. It may contain content that can't be addressed.");
+      const data = await response.json();
+      console.log('Received response from Gemini API');
+      
+      // Safety check for expected response format
+      if (!data.candidates || !data.candidates[0]?.content?.parts?.[0]?.text) {
+        console.error('Unexpected response format from Gemini API:', data);
+        
+        // Check for specific error conditions
+        if (data.error) {
+          lastError = new Error(`API Error: ${data.error.message || 'Unknown error'}`);
+          continue; // Try next endpoint
+        }
+        
+        lastError = new Error("Received a response with unexpected format from the API.");
+        continue; // Try next endpoint
+      }
+      
+      // If we get to this point, we have a successful response
+      // Store the working endpoint for future use
+      if (endpoint !== API_URL) {
+        console.log(`Found working endpoint: ${endpoint}, updating for future use`);
+        API_URL = endpoint;
+        localStorage.setItem('gemini_api_endpoint', endpoint);
+      }
+      
+      return data.candidates[0].content.parts[0].text;
+    } catch (error) {
+      console.error(`Error with endpoint ${endpoint}:`, error);
+      lastError = error;
+      // Continue to the next endpoint
     }
-    
-    if (response.status === 403 || response.status === 401) {
-      throw new Error("API authentication error: The API key is invalid or has insufficient permissions.");
-    }
-    
-    if (response.status === 429) {
-      throw new Error("Rate limit exceeded. The API is receiving too many requests. Please try again in a few moments.");
-    }
-    
-    throw new Error(`API error (${response.status}): ${errorData.error?.message || response.statusText}`);
-  }
-
-  const data = await response.json();
-  console.log('Received response from Gemini API');
-  
-  // Safety check for expected response format
-  if (!data.candidates || !data.candidates[0]?.content?.parts?.[0]?.text) {
-    console.error('Unexpected response format from Gemini API:', data);
-    
-    // Check for specific error conditions
-    if (data.error) {
-      throw new Error(`API Error: ${data.error.message || 'Unknown error'}`);
-    }
-    
-    throw new Error("Received a response with unexpected format from the API.");
   }
   
-  return data.candidates[0].content.parts[0].text;
+  // If we get here, all endpoints failed
+  console.error("All Gemini API endpoints failed");
+  throw lastError || new Error("Failed to get a response from any Gemini API endpoint.");
 }
 
 // Function to test the Gemini API connection
 export async function testGeminiConnection(): Promise<{ success: boolean; message: string }> {
-  console.log("Testing Gemini API connection with key:", API_KEY.substring(0, 4) + "..." + API_KEY.substring(API_KEY.length - 4));
+  console.log("Testing Gemini API connection with key:", API_KEY ? (API_KEY.substring(0, 4) + "..." + API_KEY.substring(API_KEY.length - 4)) : "No API key found");
   
   try {
     // First check if API key exists
     if (!API_KEY) {
+      console.error("No Gemini API key provided");
       return {
         success: false,
         message: "No Gemini API key provided. Please add your API key in the environment variables."
@@ -257,11 +327,14 @@ export async function testGeminiConnection(): Promise<{ success: boolean; messag
     
     // Validate API key format
     if (!isValidApiKey(API_KEY)) {
+      console.error("Invalid API key format:", API_KEY.substring(0, 4) + "...");
       return {
         success: false,
         message: "The API key format appears to be invalid. Gemini API keys should start with 'AIza' and be at least 30 characters long."
       };
     }
+
+    console.log("Testing connection with endpoint:", API_URL);
 
     // Use a simple test request that should be fast and reliable
     try {
@@ -289,6 +362,8 @@ export async function testGeminiConnection(): Promise<{ success: boolean; messag
         signal: AbortSignal.timeout(10000) // 10 second timeout
       });
 
+      console.log("API response status:", response.status);
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         console.error('Gemini API connection test failed:', response.status, errorData);
@@ -315,6 +390,8 @@ export async function testGeminiConnection(): Promise<{ success: boolean; messag
 
       // Try to parse the response to verify it's valid
       const data = await response.json();
+      console.log("API response data:", JSON.stringify(data).substring(0, 100) + "...");
+      
       if (!data.candidates || !data.candidates[0]?.content?.parts) {
         console.warn('Response format unexpected:', data);
         return {
@@ -323,6 +400,10 @@ export async function testGeminiConnection(): Promise<{ success: boolean; messag
         };
       }
 
+      // If we get here, the connection was successful
+      // Store this working endpoint in localStorage
+      localStorage.setItem('gemini_api_endpoint', API_URL);
+      
       return {
         success: true,
         message: "Successfully connected to the Gemini API"
@@ -330,6 +411,7 @@ export async function testGeminiConnection(): Promise<{ success: boolean; messag
     } catch (error) {
       // Handle AbortError specifically for timeout
       if (error instanceof DOMException && error.name === 'AbortError') {
+        console.error("Connection timeout:", error);
         return {
           success: false,
           message: "Connection timed out. The API took too long to respond."
