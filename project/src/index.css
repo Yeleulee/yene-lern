@@ -126,6 +126,10 @@
     @apply bg-[rgb(var(--color-chatbot-bg))] text-[rgb(var(--color-bot-message))];
   }
   
+  .message-error {
+    @apply bg-red-50 text-red-800 border border-red-200;
+  }
+  
   .message-bubble {
     @apply py-3 px-4 rounded-lg max-w-[80%];
   }

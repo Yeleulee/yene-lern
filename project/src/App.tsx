@@ -14,6 +14,7 @@ import { LearningProvider } from './context/LearningContext';
 import { ChatProvider } from './context/ChatContext';
 import { LearningStatsProvider } from './context/LearningStatsContext';
 import ChatWidget from './components/ui/ChatWidget';
+import GeminiTestPage from './pages/GeminiTestPage';
 
 // Protected route wrapper
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -87,6 +88,7 @@ function App() {
                         </ProtectedRoute>
                       } 
                     />
+                    <Route path="/gemini-test" element={<GeminiTestPage />} />
                   </Routes>
                 </main>
 

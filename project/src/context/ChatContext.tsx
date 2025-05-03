@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
-import { askGemini, testGeminiConnection } from '../services/geminiService';
+import { askGemini, testGeminiConnection, checkGeminiCompatibility } from '../services/geminiService';
 
 // Define types
 export interface Message {
@@ -19,6 +19,7 @@ interface ChatContextType {
   sendMessage: (content: string, videoContext?: string) => Promise<void>;
   clearChat: () => void;
   checkConnection: () => Promise<boolean>;
+  runCompatibilityCheck: () => Promise<{ success: boolean; message: string }>;
 }
 
 // Create context
@@ -35,9 +36,10 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     },
   ]);
   const [isLoading, setIsLoading] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'checking' | 'unknown'>('unknown');
+  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'checking' | 'unknown'>('checking');
   const [connectionChecked, setConnectionChecked] = useState(false);
   const [lastConnectionCheck, setLastConnectionCheck] = useState(0);
+  const [compatibilityChecked, setCompatibilityChecked] = useState(false);
 
   // Load messages from localStorage on mount
   useEffect(() => {
@@ -53,6 +55,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.error('Error parsing saved messages:', error);
       }
     }
+    
+    // Check connection status immediately on load
+    checkConnection();
   }, []);
 
   // Save messages to localStorage when they change
@@ -61,6 +66,49 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem('chat_messages', JSON.stringify(messages));
     }
   }, [messages]);
+
+  // Run a compatibility check to find a working endpoint
+  const runCompatibilityCheck = useCallback(async () => {
+    console.log("Running compatibility check from context...");
+    
+    try {
+      setConnectionStatus('checking');
+      const result = await checkGeminiCompatibility();
+      setCompatibilityChecked(true);
+      
+      if (result.workingEndpoint) {
+        // If we found a working endpoint, run a connection test
+        const connectionTest = await testGeminiConnection();
+        
+        if (connectionTest.success) {
+          setConnectionStatus('connected');
+          return { 
+            success: true, 
+            message: `Found working endpoint: ${result.workingEndpoint}` 
+          };
+        } else {
+          setConnectionStatus('disconnected');
+          return { 
+            success: false, 
+            message: `Found endpoint ${result.workingEndpoint} but connection test failed: ${connectionTest.message}` 
+          };
+        }
+      } else {
+        setConnectionStatus('disconnected');
+        return { 
+          success: false, 
+          message: result.message 
+        };
+      }
+    } catch (error) {
+      console.error("Error in compatibility check:", error);
+      setConnectionStatus('disconnected');
+      return { 
+        success: false, 
+        message: error instanceof Error ? error.message : "Unknown error during compatibility check"
+      };
+    }
+  }, []);
 
   // Check connection status periodically
   const checkConnection = useCallback(async () => {
@@ -81,6 +129,19 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const result = await testGeminiConnection();
       const isConnected = result.success;
+      
+      if (!isConnected && !compatibilityChecked) {
+        // If connection failed and we haven't tried compatibility check yet,
+        // attempt to find a working endpoint
+        console.log("Connection test failed, trying compatibility check...");
+        const compatResult = await runCompatibilityCheck();
+        if (compatResult.success) {
+          setConnectionStatus('connected');
+          setConnectionChecked(true);
+          return true;
+        }
+      }
+      
       setConnectionStatus(isConnected ? 'connected' : 'disconnected');
       setConnectionChecked(true);
       return isConnected;
@@ -89,7 +150,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setConnectionStatus('disconnected');
       return false;
     }
-  }, [connectionStatus, connectionChecked, lastConnectionCheck]);
+  }, [connectionStatus, connectionChecked, lastConnectionCheck, compatibilityChecked, runCompatibilityCheck]);
 
   // Check connection on mount and when online status changes
   useEffect(() => {
@@ -134,7 +195,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Check connection before sending
       const isConnected = await checkConnection();
       if (!isConnected) {
-        throw new Error('Cannot connect to AI service. Please check your internet connection and try again.');
+        throw new Error('Cannot connect to AI service. Please check your internet connection, API key, and try again.');
       }
 
       // Construct a more comprehensive prompt with context
@@ -195,21 +256,49 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
                   My new question is: ${content}`;
       }
 
-      // Get AI response
-      const response = await askGemini(prompt);
-      
-      // Add AI message
-      const aiMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        content: response,
-        sender: 'ai',
-        timestamp: new Date(),
-        context: videoContext || (isLearningAssistant ? (isLearningPlan ? 'learning-plan' : 'learning') : undefined)
-      };
+      try {
+        // Get AI response
+        const response = await askGemini(prompt);
+        
+        // Add AI message
+        const aiMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          content: response,
+          sender: 'ai',
+          timestamp: new Date(),
+          context: videoContext || (isLearningAssistant ? (isLearningPlan ? 'learning-plan' : 'learning') : undefined)
+        };
 
-      setMessages((prev) => [...prev, aiMessage]);
+        setMessages((prev) => [...prev, aiMessage]);
+      } catch (error) {
+        console.error('API Error handling message:', error);
+        
+        // Provide clear error message about API issues
+        const errorMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          content: error instanceof Error 
+            ? `Sorry, there was an error with the AI service: ${error.message}`
+            : 'Sorry, there was an error connecting to the AI service. Please try again later.',
+          sender: 'ai',
+          timestamp: new Date(),
+          context: videoContext,
+          error: true
+        };
+
+        setMessages((prev) => [...prev, errorMessage]);
+        
+        // Also update connection status for critical API errors
+        if (error instanceof Error && (
+          error.message.includes('API key') || 
+          error.message.includes('authentication') ||
+          error.message.includes('unauthorized') ||
+          error.message.includes('rate limit')
+        )) {
+          setConnectionStatus('disconnected');
+        }
+      }
     } catch (error) {
-      console.error('Error sending message:', error);
+      console.error('Error in sendMessage function:', error);
       
       // Add error message with more specific information
       const errorMessage: Message = {
@@ -249,7 +338,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       connectionStatus,
       sendMessage, 
       clearChat,
-      checkConnection
+      checkConnection,
+      runCompatibilityCheck
     }}>
       {children}
     </ChatContext.Provider>
