@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { UserVideo, Video, LearningStatus } from '../types';
-import { getUserVideos, saveVideo, updateVideoStatus } from '../services/firebaseService';
+import { getUserVideos, saveVideo, updateVideoStatus, removeVideo } from '../services/firebaseService';
 import { useAuth } from './AuthContext';
 
 interface LearningContextType {
@@ -10,6 +10,7 @@ interface LearningContextType {
   addVideo: (video: Video) => Promise<void>;
   updateStatus: (videoId: string, status: LearningStatus) => Promise<void>;
   getVideoById: (videoId: string) => UserVideo | undefined;
+  removeVideo: (videoId: string) => Promise<void>;
 }
 
 const LearningContext = createContext<LearningContextType | undefined>(undefined);
@@ -51,10 +52,19 @@ export function LearningProvider({ children }: { children: ReactNode }) {
       };
 
       await saveVideo(user.uid, userVideo);
-      setUserVideos((prev) => [...prev, userVideo]);
+      
+      // Check if the video is already in the state to prevent duplicates
+      const videoExists = userVideos.some(v => v.id === video.id);
+      if (!videoExists) {
+        setUserVideos((prev) => [...prev, userVideo]);
+      }
+      
+      return Promise.resolve(); // Ensure we always return a resolved promise
     } catch (error) {
+      console.error('Error adding video:', error);
       setError(error instanceof Error ? error.message : 'Failed to add video');
-      throw error;
+      // Don't throw the error upward - return resolved promise to prevent UI crashes
+      return Promise.resolve();
     } finally {
       setLoading(false);
     }
@@ -74,9 +84,36 @@ export function LearningProvider({ children }: { children: ReactNode }) {
           video.id === videoId ? { ...video, status } : video
         )
       );
+      
+      return Promise.resolve(); // Ensure we always return a resolved promise
     } catch (error) {
+      console.error('Error updating video status:', error);
       setError(error instanceof Error ? error.message : 'Failed to update video status');
-      throw error;
+      // Don't throw the error upward - return resolved promise to prevent UI crashes
+      return Promise.resolve();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRemoveVideo = async (videoId: string) => {
+    if (!user) {
+      throw new Error('User must be logged in to remove videos');
+    }
+
+    try {
+      setLoading(true);
+      await removeVideo(user.uid, videoId);
+      
+      // Update state by removing the video
+      setUserVideos((prev) => prev.filter((video) => video.id !== videoId));
+      
+      return Promise.resolve(); // Ensure we always return a resolved promise
+    } catch (error) {
+      console.error('Error removing video:', error);
+      setError(error instanceof Error ? error.message : 'Failed to remove video');
+      // Don't throw the error upward - return resolved promise to prevent UI crashes
+      return Promise.resolve();
     } finally {
       setLoading(false);
     }
@@ -95,6 +132,7 @@ export function LearningProvider({ children }: { children: ReactNode }) {
         addVideo,
         updateStatus,
         getVideoById,
+        removeVideo: handleRemoveVideo,
       }}
     >
       {children}

@@ -1,11 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { MessageSquareText, ChevronRight, AlertCircle } from 'lucide-react';
 import VideoPlayer from '../components/video/VideoPlayer';
-import CourseVideoPlayer from '../components/video/CourseVideoPlayer';
+import CourseSection from '../components/video/CourseSection';
 import VideoSummaryCard from '../components/video/VideoSummaryCard';
 import ProgressTracker from '../components/video/ProgressTracker';
 import VideoAssistant from '../components/video/VideoAssistant';
+import VideoSegments from '../components/video/VideoSegments';
+import SegmentedVideoPlayer from '../components/video/SegmentedVideoPlayer';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
 import { useAuth } from '../context/AuthContext';
@@ -13,10 +15,11 @@ import { useLearning } from '../context/LearningContext';
 import { getVideoDetails } from '../services/youtubeService';
 import { generateVideoSummary } from '../services/geminiService';
 import { Video, VideoSummary } from '../types';
-import { getCourseSectionByVideoId } from '../data/mockCourseData';
+import { getCourseSectionByVideoId, getCourseById } from '../data/mockCourseData';
 
 const VideoPage: React.FC = () => {
   const { videoId = '' } = useParams<{ videoId: string }>();
+  const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
   const { getVideoById, addVideo, updateStatus } = useLearning();
@@ -29,9 +32,47 @@ const VideoPage: React.FC = () => {
   const [isAskingQuestion, setIsAskingQuestion] = useState(false);
   const [isPartOfCourse, setIsPartOfCourse] = useState(false);
   const [courseError, setCourseError] = useState<string | null>(null);
+  const [courseId, setCourseId] = useState<string | null>(null);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [videoDuration, setVideoDuration] = useState(0);
+  const playerRef = useRef<any>(null);
+  const [videoSegments, setVideoSegments] = useState<{ startTime: number; title: string }[]>([]);
   
   const userVideo = user ? getVideoById(videoId) : undefined;
   const isVideoSaved = !!userVideo;
+
+  // Parse URL query parameters to check for course context
+  useEffect(() => {
+    const queryParams = new URLSearchParams(location.search);
+    const courseParam = queryParams.get('course');
+    
+    if (courseParam) {
+      const courseExists = getCourseById(courseParam);
+      
+      if (courseExists) {
+        setCourseId(courseParam);
+      }
+    } else {
+      // Check if we have a stored course context
+      const storedContext = localStorage.getItem('current_course_context');
+      if (storedContext) {
+        try {
+          const context = JSON.parse(storedContext);
+          const courseExists = getCourseById(context.courseId);
+          
+          if (courseExists) {
+            // If the video is part of the stored course, keep the context
+            const courseData = getCourseSectionByVideoId(videoId);
+            if (courseData && courseData.course.id === context.courseId) {
+              setCourseId(context.courseId);
+            }
+          }
+        } catch (e) {
+          console.error('Error parsing stored course context:', e);
+        }
+      }
+    }
+  }, [location.search, videoId]);
 
   useEffect(() => {
     async function loadVideoAndSummary() {
@@ -50,9 +91,18 @@ const VideoPage: React.FC = () => {
             setIsPartOfCourse(false);
           } else {
             setIsPartOfCourse(true);
+            
+            // If we have a courseId from the URL but it doesn't match this video's course,
+            // update to the correct course
+            if (courseId && courseId !== course.id) {
+              setCourseId(course.id);
+            } else if (!courseId) {
+              setCourseId(course.id);
+            }
           }
         } else {
           setIsPartOfCourse(false);
+          setCourseId(null);
         }
         
         // For both course and non-course videos, load the video details
@@ -79,7 +129,33 @@ const VideoPage: React.FC = () => {
     if (videoId) {
       loadVideoAndSummary();
     }
-  }, [videoId]);
+  }, [videoId, courseId]);
+
+  // Add a function to parse segments
+  useEffect(() => {
+    if (video?.description) {
+      const timestampRegex = /(?:\[)?(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\])?(?:\s?[-–—]\s?|\s)([^\r\n]+)/gm;
+      const parsedSegments: { startTime: number; title: string }[] = [];
+      let match;
+      
+      // Find all timestamps in the description
+      while ((match = timestampRegex.exec(video.description)) !== null) {
+        const hours = match[3] ? parseInt(match[1]) : 0;
+        const minutes = match[3] ? parseInt(match[2]) : parseInt(match[1]);
+        const seconds = match[3] ? parseInt(match[3]) : parseInt(match[2]);
+        const title = match[4].trim();
+        
+        // Calculate start time in seconds
+        const startTime = hours * 3600 + minutes * 60 + seconds;
+        
+        parsedSegments.push({ startTime, title });
+      }
+      
+      // Sort segments chronologically
+      parsedSegments.sort((a, b) => a.startTime - b.startTime);
+      setVideoSegments(parsedSegments);
+    }
+  }, [video?.description]);
 
   const handleSaveVideo = async () => {
     if (user && video) {
@@ -108,6 +184,29 @@ const VideoPage: React.FC = () => {
       console.error('Error asking question:', error);
     } finally {
       setIsAskingQuestion(false);
+    }
+  };
+
+  // Add a function to handle time updates
+  const handleTimeUpdate = (time: number, duration: number) => {
+    setCurrentTime(time);
+    setVideoDuration(duration);
+  };
+  
+  // Add a function to handle seeking
+  const handleSeek = (time: number) => {
+    if (playerRef.current && playerRef.current.seekTo) {
+      playerRef.current.seekTo(time);
+    } else {
+      // Fallback method
+      const iframe = document.querySelector('iframe');
+      if (iframe && iframe.contentWindow) {
+        iframe.contentWindow.postMessage(JSON.stringify({
+          event: 'command',
+          func: 'seekTo',
+          args: [time, true]
+        }), '*');
+      }
     }
   };
 
@@ -169,16 +268,26 @@ const VideoPage: React.FC = () => {
     );
   }
 
-  // For course videos, display the course video player
+  // For course videos, display the course section component with the courseId
   if (isPartOfCourse) {
-    return <CourseVideoPlayer videoId={videoId} />;
+    return <SegmentedVideoPlayer 
+      videoId={videoId}
+      title={video.title}
+      description={video.description || ''}
+    />;
   }
 
   // For regular videos, use the original player
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-6">
-        <VideoPlayer videoId={videoId} />
+        <VideoPlayer 
+          videoId={videoId} 
+          onTimeUpdate={handleTimeUpdate}
+          ref={playerRef}
+          segments={videoSegments}
+          showSegmentMarkers={true}
+        />
       </div>
 
       <h1 className="text-2xl md:text-3xl font-bold mb-2">{video.title}</h1>
@@ -200,70 +309,52 @@ const VideoPage: React.FC = () => {
 
           {/* AI Video Assistant */}
           <VideoAssistant videoId={videoId} videoTitle={video.title} />
-
-          <div className="card">
-            <h3 className="text-lg font-medium mb-3 flex items-center">
-              <MessageSquareText size={20} className="mr-2 text-secondary-600" />
-              Ask a Question
-            </h3>
-            <p className="text-gray-600 text-sm mb-4">
-              Have a specific question about this video? Our AI assistant will answer based on the video content.
-            </p>
-            
-            <div className="flex items-start gap-2">
-              <Input
-                type="text"
-                placeholder="E.g., What are the key points covered in this video?"
-                value={userQuestion}
-                onChange={(e) => setUserQuestion(e.target.value)}
-                className="flex-grow"
-              />
-              <Button
-                onClick={handleAskQuestion}
-                isLoading={isAskingQuestion}
-                disabled={!userQuestion.trim()}
-              >
-                Ask <ChevronRight size={16} />
-              </Button>
-            </div>
-          </div>
-
-          <div className="card">
-            <h3 className="text-lg font-medium mb-3">About this Video</h3>
-            <p className="text-gray-700 whitespace-pre-line">{video.description}</p>
+          
+          {/* Video Segments */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
+            <h2 className="text-xl font-semibold mb-4">Video Segments</h2>
+            <VideoSegments
+              videoId={videoId}
+              description={video.description || ''}
+              currentTime={currentTime}
+              duration={videoDuration}
+              onSeek={handleSeek}
+              onSegmentComplete={(segmentId) => {
+                // Handle segment completion
+                console.log(`Segment ${segmentId} completed`);
+              }}
+            />
           </div>
         </div>
 
-        <div>
-          {isVideoSaved && userVideo ? (
-            <ProgressTracker video={userVideo} onUpdateStatus={handleUpdateStatus} />
-          ) : (
-            <div className="card">
-              <h3 className="text-lg font-medium mb-3">Track Your Progress</h3>
-              <p className="text-gray-600 mb-4">
-                Save this video to your learning library to track your progress.
-              </p>
-              {user ? (
-                <Button onClick={handleSaveVideo} className="w-full">
-                  Save to My Learning
-                </Button>
-              ) : (
-                <div className="space-y-3">
-                  <p className="text-sm text-gray-500">Sign in to track your progress</p>
-                  <Link to="/login">
-                    <Button variant="outline" className="w-full">
-                      Login
-                    </Button>
-                  </Link>
-                  <Link to="/signup">
-                    <Button className="w-full">
-                      Sign Up
-                    </Button>
-                  </Link>
-                </div>
-              )}
-            </div>
+        <div className="space-y-6">
+          {isVideoSaved && (
+            <ProgressTracker 
+              videoId={videoId}
+              onStatusChange={handleUpdateStatus}
+              initialStatus={userVideo?.status}
+            />
           )}
+          
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
+            <h2 className="text-lg font-semibold mb-4">Ask a Question</h2>
+            <div className="space-y-4">
+              <Input
+                value={userQuestion}
+                onChange={(e) => setUserQuestion(e.target.value)}
+                placeholder="Ask about this video..."
+              />
+              <Button 
+                onClick={handleAskQuestion} 
+                disabled={isAskingQuestion || !userQuestion.trim()}
+                isLoading={isAskingQuestion}
+                className="w-full"
+              >
+                <MessageSquareText className="mr-2 h-4 w-4" />
+                Ask Question
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

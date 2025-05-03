@@ -4,6 +4,39 @@ import { VideoSummary } from '../types';
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || 'AIzaSyA7jQcLw_M0Dt6ZMQFf7VOsJsAPKo6h35Y';
 const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
 
+// Add exponential backoff retry mechanism for API requests
+async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 3): Promise<Response> {
+  let retries = 0;
+  
+  while (retries < maxRetries) {
+    try {
+      const response = await fetch(url, options);
+      
+      // If response is successful or not a server error (5xx), return it
+      if (response.ok || response.status < 500) {
+        return response;
+      }
+      
+      // Otherwise, it's a server error (5xx), so we should retry
+      retries++;
+      const delay = Math.min(1000 * 2 ** retries, 10000); // Exponential backoff capped at 10 seconds
+      
+      console.warn(`Attempt ${retries}/${maxRetries} failed with status ${response.status}. Retrying in ${delay}ms...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      
+    } catch (error) {
+      // Network errors also deserve a retry
+      retries++;
+      const delay = Math.min(1000 * 2 ** retries, 10000);
+      console.warn(`Network error on attempt ${retries}/${maxRetries}. Retrying in ${delay}ms...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  
+  // If we've exhausted retries, throw an error
+  throw new Error(`Failed after ${maxRetries} retries`);
+}
+
 export async function generateVideoSummary(
   title: string,
   description: string,
@@ -24,7 +57,7 @@ export async function generateVideoSummary(
       prompt += `\nUser Question: ${userQuestion}\nPlease also provide a helpful response to this question.`;
     }
 
-    const response = await fetch(`${API_URL}?key=${API_KEY}`, {
+    const response = await fetchWithRetry(`${API_URL}?key=${API_KEY}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -39,6 +72,11 @@ export async function generateVideoSummary(
             ],
           },
         ],
+        generationConfig: {
+          temperature: 0.7,
+          topP: 0.95,
+          topK: 40
+        }
       }),
     });
 
@@ -49,6 +87,13 @@ export async function generateVideoSummary(
     }
 
     const data = await response.json();
+    
+    // Check for expected response format
+    if (!data.candidates || !data.candidates[0]?.content?.parts?.[0]?.text) {
+      console.error('Unexpected response format from Gemini API:', data);
+      throw new Error('Invalid response format from API');
+    }
+    
     const text = data.candidates[0].content.parts[0].text;
 
     // Parse the response to extract summary, next topics and response
@@ -80,6 +125,12 @@ export async function generateVideoSummary(
 
 // Enhanced function to ask general questions to Gemini with education-specific context
 export async function askGemini(question: string): Promise<string> {
+  // Check for internet connectivity
+  if (!navigator.onLine) {
+    console.warn('No internet connection detected');
+    return "It appears you're offline. Please check your internet connection and try again.";
+  }
+  
   try {
     // Check if API key is the default one (always use the real API if available)
     const isUsingDefaultKey = API_KEY === 'AIzaSyA7jQcLw_M0Dt6ZMQFf7VOsJsAPKo6h35Y';
@@ -99,7 +150,9 @@ export async function askGemini(question: string): Promise<string> {
     
     User question: ${question}`;
 
-    const response = await fetch(`${API_URL}?key=${API_KEY}`, {
+    console.log('Sending request to Gemini API...');
+    
+    const response = await fetchWithRetry(`${API_URL}?key=${API_KEY}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -138,6 +191,7 @@ export async function askGemini(question: string): Promise<string> {
     }
 
     const data = await response.json();
+    console.log('Received response from Gemini API');
     
     // Safety check for expected response format
     if (!data.candidates || !data.candidates[0]?.content?.parts?.[0]?.text) {
@@ -149,12 +203,29 @@ export async function askGemini(question: string): Promise<string> {
   } catch (error) {
     console.error('Error asking Gemini:', error);
     if (error instanceof Error) {
-      if (error.message.includes('Failed to fetch')) {
-        return "Network error: Please check your internet connection and try again.";
+      if (error.message.includes('Failed to fetch') || error.message.includes('retries')) {
+        return "Network error: I'm having trouble connecting to my knowledge database. This could be due to internet connectivity issues or the API service being temporarily unavailable. Please try again in a moment.";
       }
       return `Error: ${error.message}`;
     }
-    return "Something went wrong. Please try again later.";
+    return "Something went wrong with my AI brain. Please try again later.";
+  }
+}
+
+// Function to test the Gemini API connection
+export async function testGeminiConnection(): Promise<{ success: boolean; message: string }> {
+  try {
+    const testResponse = await askGemini("Hello, this is a test message. Please respond with 'Connection successful'.");
+    return {
+      success: true,
+      message: "Successfully connected to the Gemini API"
+    };
+  } catch (error) {
+    console.error("Error testing Gemini connection:", error);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : "Unknown error connecting to Gemini API"
+    };
   }
 }
 

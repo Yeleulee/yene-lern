@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLearning } from '../context/LearningContext';
 import { useLearningStats } from '../context/LearningStatsContext';
-import { ArrowUp, Award, Clock, CheckCircle, TrendingUp, Users, Brain, Calendar } from 'lucide-react';
+import { ArrowUp, Award, Clock, CheckCircle, TrendingUp, Users, Brain, Calendar, Camera, X, Upload, User } from 'lucide-react';
 import Button from '../components/ui/Button';
+import ProfilePictureEditor from '../components/profile/ProfilePictureEditor';
 
 interface LeaderboardUser {
   uid: string;
@@ -53,7 +54,7 @@ const mockLeaderboard: LeaderboardUser[] = [
 ];
 
 const ProfilePage: React.FC = () => {
-  const { user } = useAuth();
+  const { user, updateProfile } = useAuth();
   const { userVideos } = useLearning();
   const { 
     leaderboard, 
@@ -69,6 +70,12 @@ const ProfilePage: React.FC = () => {
     averageTimePerVideo
   } = useLearningStats();
   const [activeTab, setActiveTab] = useState<'profile' | 'stats' | 'leaderboard'>('profile');
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [showEditor, setShowEditor] = useState(false);
+  const [tempImageUrl, setTempImageUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Calculate user stats
   const completedVideos = userVideos.filter(v => v.status === 'completed').length;
@@ -87,6 +94,98 @@ const ProfilePage: React.FC = () => {
       month: 'short', 
       day: 'numeric' 
     });
+  };
+
+  // Handle file selection for profile picture
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    // Validate file type
+    const validImageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!validImageTypes.includes(file.type)) {
+      setUploadError('Please select a valid image file (JPEG, PNG, GIF, WEBP)');
+      return;
+    }
+    
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setUploadError('Image size should be less than 5MB');
+      return;
+    }
+    
+    setUploadError(null);
+    
+    try {
+      // Read the file and open the editor
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const imageUrl = event.target?.result as string;
+        setTempImageUrl(imageUrl);
+        setShowEditor(true);
+      };
+      reader.onerror = () => {
+        setUploadError('Error reading file');
+      };
+      reader.readAsDataURL(file);
+    } catch (error) {
+      console.error('Error reading profile picture:', error);
+      setUploadError('Failed to read image');
+    }
+  };
+
+  // Trigger file input click
+  const handleProfilePictureClick = () => {
+    setShowProfileMenu(!showProfileMenu);
+  };
+
+  // Handle upload button click
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
+    setShowProfileMenu(false);
+  };
+
+  // Handle remove profile picture
+  const handleRemovePicture = async () => {
+    if (updateProfile) {
+      try {
+        setIsUploading(true);
+        await updateProfile({
+          photoURL: null
+        });
+        setShowProfileMenu(false);
+      } catch (error) {
+        console.error('Error removing profile picture:', error);
+        setUploadError('Failed to remove profile picture');
+      } finally {
+        setIsUploading(false);
+      }
+    }
+  };
+  
+  // Handle save from editor
+  const handleSaveProfilePicture = async (croppedImageData: string) => {
+    if (updateProfile) {
+      try {
+        setIsUploading(true);
+        await updateProfile({
+          photoURL: croppedImageData
+        });
+        setShowEditor(false);
+        setTempImageUrl(null);
+      } catch (error) {
+        console.error('Error updating profile picture:', error);
+        setUploadError('Failed to update profile picture');
+      } finally {
+        setIsUploading(false);
+      }
+    }
+  };
+  
+  // Handle cancel from editor
+  const handleCancelEdit = () => {
+    setShowEditor(false);
+    setTempImageUrl(null);
   };
 
   if (!user) {
@@ -115,10 +214,77 @@ const ProfilePage: React.FC = () => {
       {/* Profile Header */}
       <div className="bg-gradient-to-br from-blue-600 to-purple-700 rounded-2xl p-8 mb-8 text-white">
         <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
-          <div className="w-24 h-24 rounded-full bg-white p-1 shadow-lg">
-            <div className="w-full h-full rounded-full bg-gradient-to-br from-red-400 to-red-600 flex items-center justify-center text-white font-bold text-3xl">
-              {user.displayName?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || 'U'}
+          <div className="relative group">
+            <div 
+              className="w-24 h-24 rounded-full bg-white p-1 shadow-lg cursor-pointer overflow-hidden"
+              onClick={handleProfilePictureClick}
+            >
+              {user.photoURL ? (
+                <img 
+                  src={user.photoURL} 
+                  alt={user.displayName || "Profile"} 
+                  className="w-full h-full rounded-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full rounded-full bg-gradient-to-br from-red-400 to-red-600 flex items-center justify-center text-white font-bold text-3xl">
+                  {user.displayName?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || 'U'}
+                </div>
+              )}
+              
+              {/* Overlay with camera icon */}
+              <div className="absolute inset-0 bg-black bg-opacity-40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                <Camera size={24} className="text-white" />
+              </div>
             </div>
+            
+            {/* Profile picture menu */}
+            {showProfileMenu && (
+              <div className="absolute left-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10">
+                <div className="py-1" role="menu" aria-orientation="vertical">
+                  <button
+                    onClick={handleUploadClick}
+                    className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                    role="menuitem"
+                  >
+                    <Upload size={16} className="mr-2" />
+                    Upload New Picture
+                  </button>
+                  {user.photoURL && (
+                    <button
+                      onClick={handleRemovePicture}
+                      className="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-gray-100 w-full text-left"
+                      role="menuitem"
+                    >
+                      <X size={16} className="mr-2" />
+                      Remove Picture
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+            
+            {/* Hidden file input */}
+            <input 
+              type="file" 
+              ref={fileInputRef} 
+              onChange={handleFileChange} 
+              className="hidden" 
+              accept="image/jpeg, image/png, image/gif, image/webp" 
+            />
+            
+            {/* Upload error message */}
+            {uploadError && (
+              <div className="absolute -bottom-6 left-0 right-0 text-center text-red-300 text-xs">
+                {uploadError}
+              </div>
+            )}
+            
+            {/* Loading indicator */}
+            {isUploading && (
+              <div className="absolute inset-0 bg-black bg-opacity-60 rounded-full flex items-center justify-center">
+                <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-500 rounded-full animate-spin"></div>
+              </div>
+            )}
           </div>
           
           <div className="flex-1 text-center md:text-left">
@@ -462,6 +628,15 @@ const ProfilePage: React.FC = () => {
             </table>
           </div>
         </div>
+      )}
+
+      {/* Profile Picture Editor Modal */}
+      {showEditor && tempImageUrl && (
+        <ProfilePictureEditor 
+          imageUrl={tempImageUrl}
+          onSave={handleSaveProfilePicture}
+          onCancel={handleCancelEdit}
+        />
       )}
     </div>
   );

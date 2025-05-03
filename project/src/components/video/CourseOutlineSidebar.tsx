@@ -20,6 +20,7 @@ interface CourseOutlineSidebarProps {
   onAutoPlayToggle: () => void;
   onMarkComplete: () => void;
   currentSectionId: string;
+  courseId: string;
 }
 
 const CourseOutlineSidebar: React.FC<CourseOutlineSidebarProps> = ({
@@ -28,7 +29,8 @@ const CourseOutlineSidebar: React.FC<CourseOutlineSidebarProps> = ({
   autoPlay,
   onAutoPlayToggle,
   onMarkComplete,
-  currentSectionId
+  currentSectionId,
+  courseId
 }) => {
   return (
     <div className="bg-white border-r border-gray-200 h-full flex flex-col">
@@ -61,7 +63,7 @@ const CourseOutlineSidebar: React.FC<CourseOutlineSidebarProps> = ({
         {courseSections.map((section, index) => (
           <Link
             key={section.id}
-            to={`/video/${section.videoId}`}
+            to={`/video/${section.videoId}?course=${courseId}`}
             className={`flex items-center p-4 border-b border-gray-100 hover:bg-gray-50 ${
               section.current ? 'bg-blue-50' : ''
             }`}

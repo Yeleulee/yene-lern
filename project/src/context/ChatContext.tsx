@@ -1,5 +1,5 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
-import { askGemini } from '../services/geminiService';
+import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
+import { askGemini, testGeminiConnection } from '../services/geminiService';
 
 // Define types
 export interface Message {
@@ -9,13 +9,16 @@ export interface Message {
   timestamp: Date;
   context?: string; // Optional context like videoId
   isFallback?: boolean;
+  error?: boolean;
 }
 
 interface ChatContextType {
   messages: Message[];
   isLoading: boolean;
+  connectionStatus: 'connected' | 'disconnected' | 'checking' | 'unknown';
   sendMessage: (content: string, videoContext?: string) => Promise<void>;
   clearChat: () => void;
+  checkConnection: () => Promise<boolean>;
 }
 
 // Create context
@@ -32,6 +35,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     },
   ]);
   const [isLoading, setIsLoading] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'checking' | 'unknown'>('unknown');
+  const [connectionChecked, setConnectionChecked] = useState(false);
+  const [lastConnectionCheck, setLastConnectionCheck] = useState(0);
 
   // Load messages from localStorage on mount
   useEffect(() => {
@@ -56,6 +62,58 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [messages]);
 
+  // Check connection status periodically
+  const checkConnection = useCallback(async () => {
+    // Only check if we haven't checked in the last 2 minutes
+    const now = Date.now();
+    if (now - lastConnectionCheck < 2 * 60 * 1000 && connectionChecked) {
+      return connectionStatus === 'connected';
+    }
+
+    if (!navigator.onLine) {
+      setConnectionStatus('disconnected');
+      return false;
+    }
+
+    setConnectionStatus('checking');
+    setLastConnectionCheck(now);
+
+    try {
+      const result = await testGeminiConnection();
+      const isConnected = result.success;
+      setConnectionStatus(isConnected ? 'connected' : 'disconnected');
+      setConnectionChecked(true);
+      return isConnected;
+    } catch (error) {
+      console.error('Error checking connection:', error);
+      setConnectionStatus('disconnected');
+      return false;
+    }
+  }, [connectionStatus, connectionChecked, lastConnectionCheck]);
+
+  // Check connection on mount and when online status changes
+  useEffect(() => {
+    const handleOnlineStatusChange = () => {
+      if (navigator.onLine) {
+        checkConnection();
+      } else {
+        setConnectionStatus('disconnected');
+      }
+    };
+
+    // Initial check
+    checkConnection();
+
+    // Set up event listeners for online/offline status
+    window.addEventListener('online', handleOnlineStatusChange);
+    window.addEventListener('offline', handleOnlineStatusChange);
+
+    return () => {
+      window.removeEventListener('online', handleOnlineStatusChange);
+      window.removeEventListener('offline', handleOnlineStatusChange);
+    };
+  }, [checkConnection]);
+
   // Send a message and get a response
   const sendMessage = async (content: string, videoContext?: string) => {
     if (!content.trim()) return;
@@ -73,10 +131,56 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
 
     try {
+      // Check connection before sending
+      const isConnected = await checkConnection();
+      if (!isConnected) {
+        throw new Error('Cannot connect to AI service. Please check your internet connection and try again.');
+      }
+
       // Construct a more comprehensive prompt with context
       let prompt = content;
+      let isLearningPlan = false;
       
-      if (videoContext) {
+      // Check if this is a learning assistant message
+      const isLearningAssistant = content.startsWith('[Learning Assistant]');
+      if (isLearningAssistant) {
+        // Extract the actual question
+        const question = content.replace('[Learning Assistant]', '').trim();
+        
+        // Get the last few messages for context
+        const contextMessages = messages
+          .slice(-4) // Get the most recent 4 messages as context
+          .map(m => `${m.sender === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
+          .join('\n');
+        
+        // Check if this is a personalized learning plan request
+        isLearningPlan = question.includes('Generate a personalized learning plan');
+        
+        if (isLearningPlan) {
+          prompt = `${question}
+                   
+                   Please format your response as a structured learning plan with the following sections:
+                   1. Summary of my learning profile
+                   2. Goals based on my profile
+                   3. Recommended next steps (be specific)
+                   4. Daily learning schedule
+                   5. Resources tailored to my interests
+                   
+                   Make the plan specific and actionable based on the information provided.
+                   Format the plan in a clear, organized way that's easy to follow.`;
+        } else {
+          prompt = `As a learning platform assistant specialized in helping students improve their learning journey.
+                    The user is using the "My Learning" section of the platform where they track their courses and learning progress.
+                    
+                    Here's our recent conversation:
+                    ${contextMessages}
+                    
+                    The user is asking about their learning journey: ${question}
+                    
+                    Please provide specific, actionable advice about learning strategies, study techniques, or content recommendations.
+                    Focus on being helpful, practical, and motivating.`;
+        }
+      } else if (videoContext) {
         // Get the last few messages for this context to provide conversation history
         const contextMessages = messages
           .filter(m => m.context === videoContext || !m.context)
@@ -91,11 +195,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
                   My new question is: ${content}`;
       }
 
-      // Check for network connectivity before making API call
-      if (!navigator.onLine) {
-        throw new Error('You are currently offline. Please check your internet connection and try again.');
-      }
-
       // Get AI response
       const response = await askGemini(prompt);
       
@@ -105,7 +204,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         content: response,
         sender: 'ai',
         timestamp: new Date(),
-        context: videoContext
+        context: videoContext || (isLearningAssistant ? (isLearningPlan ? 'learning-plan' : 'learning') : undefined)
       };
 
       setMessages((prev) => [...prev, aiMessage]);
@@ -120,7 +219,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
           : 'Sorry, I encountered an error. Please try again later.',
         sender: 'ai',
         timestamp: new Date(),
-        context: videoContext
+        context: videoContext,
+        error: true
       };
 
       setMessages((prev) => [...prev, errorMessage]);
@@ -143,7 +243,14 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <ChatContext.Provider value={{ messages, isLoading, sendMessage, clearChat }}>
+    <ChatContext.Provider value={{ 
+      messages, 
+      isLoading, 
+      connectionStatus,
+      sendMessage, 
+      clearChat,
+      checkConnection
+    }}>
       {children}
     </ChatContext.Provider>
   );

@@ -5,7 +5,8 @@ import {
   signUp, 
   signOut, 
   signInWithGoogle, 
-  getCurrentUser
+  getCurrentUser,
+  updateUserProfile
 } from '../services/firebaseService';
 
 interface AuthContextType {
@@ -16,6 +17,7 @@ interface AuthContextType {
   register: (email: string, password: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
+  updateProfile: (userProfile: Partial<User>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -106,8 +108,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const updateProfile = async (userProfile: Partial<User>) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const updatedUser = await updateUserProfile(userProfile);
+      if (updatedUser) {
+        setUser(updatedUser);
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'An error occurred updating profile';
+      setError(errorMessage);
+      throw new Error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, error, login, register, loginWithGoogle, logout }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      loading, 
+      error, 
+      login, 
+      register, 
+      loginWithGoogle, 
+      logout,
+      updateProfile 
+    }}>
       {children}
     </AuthContext.Provider>
   );

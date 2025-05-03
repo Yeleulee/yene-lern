@@ -185,10 +185,10 @@ const CourseVideoPlayer: React.FC<CourseVideoPlayerProps> = ({ videoId }) => {
   const prevSection = getPrevSection(currentCourseData.courseId, currentCourseData.currentSection.id);
   
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50">
+    <div className="flex flex-col h-screen bg-white overflow-hidden">
       {/* Top Navigation Bar */}
-      <header className="bg-white border-b border-gray-200 py-3 px-4">
-        <div className="container mx-auto">
+      <header className="bg-white border-b border-gray-200 py-2 px-4 flex-shrink-0">
+        <div className="flex items-center justify-between">
           <div className="flex items-center">
             <button 
               className="md:hidden mr-2 text-gray-700"
@@ -197,37 +197,25 @@ const CourseVideoPlayer: React.FC<CourseVideoPlayerProps> = ({ videoId }) => {
               {showOutline ? <X size={20} /> : <Menu size={20} />}
             </button>
             <Link to="/my-learning" className="text-gray-700 hover:text-blue-600 flex items-center">
-              <ArrowLeft size={20} className="mr-2" />
+              <ArrowLeft size={18} className="mr-1" />
               <span className="text-sm">Back</span>
             </Link>
-            <span className="mx-2 text-gray-400">/</span>
-            <h1 className="text-md font-medium text-gray-800">Classroom</h1>
-            <div className="ml-auto">
-              <button className="flex items-center text-blue-600 hover:text-blue-800">
-                <BookmarkPlus size={20} className="mr-1" />
-                <span className="text-sm">Add to list</span>
-              </button>
-            </div>
+            <span className="mx-2 text-gray-400">|</span>
+            <h1 className="text-sm font-medium text-gray-800">{currentCourseData.title}</h1>
+          </div>
+          <div className="flex items-center">
+            <button className="flex items-center text-blue-600 hover:text-blue-800 text-sm">
+              <BookmarkPlus size={16} className="mr-1" />
+              <span>Save</span>
+            </button>
           </div>
         </div>
       </header>
 
-      {/* Course Title */}
-      <div className="bg-white border-b border-gray-200 py-4 px-4">
-        <div className="container mx-auto">
-          <h1 className="text-xl md:text-2xl font-bold text-gray-900">{currentCourseData.title}</h1>
-          <div className="flex items-center text-sm text-gray-600 mt-1">
-            <span>JavaScript Mastery via YouTube</span>
-            <span className="mx-2">•</span>
-            <a href="#" className="text-blue-600 hover:underline">Direct link</a>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="flex flex-row h-[calc(100vh-120px)] relative">
+      {/* Main Content Area */}
+      <div className="flex flex-1 overflow-hidden">
         {/* Left Sidebar - conditionally shown based on showOutline state */}
-        <div className={`${showOutline ? 'w-80' : 'w-0'} md:w-80 bg-white border-r border-gray-200 flex flex-col overflow-hidden transition-all duration-300 absolute md:relative z-10 h-full`}>
+        <div className={`${showOutline ? 'w-80' : 'w-0'} bg-white border-r border-gray-200 flex flex-col overflow-hidden transition-all duration-300 absolute md:relative z-10 h-full`}>
           {/* Play All Toggle */}
           <div className="border-b border-gray-200 p-4">
             <label className="flex items-center space-x-2 cursor-pointer">
@@ -263,19 +251,14 @@ const CourseVideoPlayer: React.FC<CourseVideoPlayerProps> = ({ videoId }) => {
                   }
                 }}
               >
-                <div className="mr-3 flex-shrink-0">
-                  <div className={`h-7 w-7 flex items-center justify-center rounded-full ${
-                    section.completed ? 'bg-blue-100 text-blue-600' : 
-                    section.current ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700'
-                  }`}>
-                    {section.completed ? (
-                      <CheckCircle size={16} className="text-blue-600" />
-                    ) : (
-                      <span className="text-sm font-medium">{index + 1}</span>
-                    )}
-                  </div>
+                <div className="flex-shrink-0 w-7 h-7 flex items-center justify-center bg-gray-100 rounded-full mr-3">
+                  {section.completed ? (
+                    <CheckCircle size={16} className="text-blue-600" />
+                  ) : (
+                    <span className="text-sm font-medium text-gray-700">{index + 1}</span>
+                  )}
                 </div>
-                <span className={`text-sm ${
+                <span className={`text-sm truncate ${
                   section.current ? 'font-medium text-blue-700' : 
                   section.completed ? 'text-gray-600' : 'text-gray-700'
                 }`}>
@@ -288,59 +271,53 @@ const CourseVideoPlayer: React.FC<CourseVideoPlayerProps> = ({ videoId }) => {
 
         {/* Main Content Area */}
         <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Current section title for mobile */}
-          <div className="md:hidden bg-white p-3 border-b border-gray-200">
-            <h2 className="text-md font-medium truncate">
-              {currentCourseData.currentSection.title}
-            </h2>
-          </div>
-          
           {/* Video Player */}
-          <div className="w-full bg-black h-[60vh]">
+          <div className="w-full bg-black">
             <iframe
               src={`https://www.youtube.com/embed/${videoId}?rel=0&enablejsapi=1`}
               title="YouTube video player"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
-              className="w-full h-full"
+              className="w-full aspect-video"
               onLoad={handleIframeLoad}
               onError={handleIframeError}
               ref={iframeRef}
             ></iframe>
           </div>
 
-          {/* Mark Complete button */}
-          <div className="bg-white p-4 border-t border-gray-200">
-            <div className="container mx-auto flex justify-between items-center">
-              <h2 className="text-lg font-semibold">{currentCourseData.currentSection.title}</h2>
-              <button
-                onClick={handleMarkComplete}
-                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded"
-              >
-                <CheckCircle size={16} />
-                <span>Mark as complete</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Video Navigation */}
-          <div className="bg-white p-4 border-t border-gray-200 flex items-center justify-between">
-            <div className="text-sm text-gray-500">
-              <div className="flex items-center">
-                <div className="w-32 h-2 bg-gray-200 rounded-full overflow-hidden mr-2">
-                  <div 
-                    className="h-full bg-blue-600 rounded-full" 
-                    style={{ width: `${(completedCount / totalSections) * 100}%` }}
-                  ></div>
+          {/* Course Content */}
+          <div className="flex-1 flex flex-col overflow-hidden">
+            {/* Current section info */}
+            <div className="bg-white p-4 border-t border-gray-200 border-b-0">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="flex items-center mb-1">
+                    <span className="text-sm text-gray-500 mr-2">{currentSectionNumber} of {totalSections}</span>
+                    <div className="w-32 h-2 bg-gray-200 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-blue-600 rounded-full" 
+                        style={{ width: `${(completedCount / totalSections) * 100}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                  <h2 className="text-xl font-semibold">{currentCourseData.currentSection.title}</h2>
                 </div>
-                <span>{completedCount}/{totalSections} completed</span>
+                
+                <button
+                  onClick={handleMarkComplete}
+                  className="flex items-center space-x-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded"
+                >
+                  <CheckCircle size={16} />
+                  <span>Mark as complete</span>
+                </button>
               </div>
             </div>
             
-            <div className="flex space-x-4">
+            {/* Navigation Controls */}
+            <div className="bg-white p-3 border-t border-gray-200 mt-auto flex items-center justify-between">              
               <button
                 onClick={navigateToPrevSection}
-                className={`flex items-center space-x-1 px-4 py-2 border ${
+                className={`flex items-center space-x-1 px-3 py-1.5 border ${
                   prevSection 
                   ? 'border-gray-300 hover:bg-gray-50 text-gray-700' 
                   : 'border-gray-200 text-gray-400 cursor-not-allowed'
@@ -353,7 +330,7 @@ const CourseVideoPlayer: React.FC<CourseVideoPlayerProps> = ({ videoId }) => {
 
               <button
                 onClick={navigateToNextSection}
-                className={`flex items-center space-x-1 px-4 py-2 ${
+                className={`flex items-center space-x-1 px-3 py-1.5 ${
                   nextSection
                   ? 'bg-blue-600 hover:bg-blue-700 text-white'
                   : 'bg-gray-200 text-gray-500 cursor-not-allowed'

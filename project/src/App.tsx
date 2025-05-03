@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Header from './components/layout/Header';
 import HomePage from './pages/HomePage';
 import DashboardPage from './pages/DashboardPage';
@@ -32,6 +32,18 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   }
 
   return <>{children}</>;
+};
+
+// ChatWidget container that respects current route
+const ChatWidgetContainer = () => {
+  const location = useLocation();
+  
+  // Don't show the chat widget on the learning page since it has its own chat interface
+  if (location.pathname === '/my-learning') {
+    return null;
+  }
+  
+  return <ChatWidget />;
 };
 
 function App() {
@@ -79,7 +91,7 @@ function App() {
                 </main>
 
                 {/* Global Chat Widget */}
-                <ChatWidget />
+                <ChatWidgetContainer />
               </div>
             </LearningStatsProvider>
           </ChatProvider>
