@@ -1,7 +1,7 @@
 import { VideoSummary } from '../types';
 
 // Use the provided API key
-const API_KEY = "AIzaSyA7jQcLw_M0Dt6ZMQFf7VOsJsAPKo6h35Y";
+const API_KEY = "AIzaSyAVfoFGXM_wywyApXziZGMoP5wrsYhOsDI";
 // Debug logging (only showing first 4 and last 4 characters for security)
 if (API_KEY) {
   const keyStart = API_KEY.substring(0, 4);
