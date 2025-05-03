@@ -193,21 +193,67 @@ const VideoPage: React.FC = () => {
     setVideoDuration(duration);
   };
   
-  // Add a function to handle seeking
+  // Add a function to handle seeking - improved with better targeting
   const handleSeek = (time: number) => {
+    console.log(`Seeking to ${time} seconds`);
+    
+    // First try using the ref
     if (playerRef.current && playerRef.current.seekTo) {
+      console.log('Using player ref to seek');
       playerRef.current.seekTo(time);
-    } else {
-      // Fallback method
-      const iframe = document.querySelector('iframe');
-      if (iframe && iframe.contentWindow) {
-        iframe.contentWindow.postMessage(JSON.stringify({
+      return; // Exit if successful
+    }
+    
+    // If ref method fails, try more specific iframe selection
+    try {
+      // Use a more specific selector to find the right iframe
+      const videoContainers = document.querySelectorAll('.video-player-container');
+      let targetIframe = null;
+      
+      if (videoContainers.length > 0) {
+        // If we have container classes, use them
+        targetIframe = videoContainers[0].querySelector('iframe');
+      } else {
+        // Fallback to the first iframe in the VideoPlayer component
+        const allIframes = document.querySelectorAll('iframe');
+        for (let i = 0; i < allIframes.length; i++) {
+          const iframe = allIframes[i];
+          // Check if this iframe is likely our video player (based on src)
+          if (iframe.src && iframe.src.includes('youtube.com/embed/')) {
+            targetIframe = iframe;
+            break;
+          }
+        }
+      }
+      
+      if (targetIframe && targetIframe.contentWindow) {
+        console.log('Using fallback iframe method to seek');
+        targetIframe.contentWindow.postMessage(JSON.stringify({
           event: 'command',
           func: 'seekTo',
           args: [time, true]
         }), '*');
+      } else {
+        console.warn('Could not find appropriate iframe for seeking');
       }
+    } catch (error) {
+      console.error('Error during seek operation:', error);
     }
+  };
+
+  // Only seek to beginning if needed, don't force playback which causes stuttering
+  useEffect(() => {
+    if (videoId && playerRef.current) {
+      // Just ensure reference is properly set, but don't force playback
+      console.log('VideoPage: Player reference established');
+    }
+  }, [videoId]);
+  
+  // Format time as MM:SS
+  const formatTime = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   if (isLoading) {
@@ -280,83 +326,94 @@ const VideoPage: React.FC = () => {
   // For regular videos, use the original player
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="mb-6">
-        <VideoPlayer 
-          videoId={videoId} 
-          onTimeUpdate={handleTimeUpdate}
-          ref={playerRef}
-          segments={videoSegments}
-          showSegmentMarkers={true}
-        />
-      </div>
+      {video && (
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* Video player and content section */}
+          <div className="lg:w-2/3">
+            {/* Video player */}
+            <div className="rounded-lg overflow-hidden mb-4 bg-black flex items-center justify-center">
+              {videoSegments.length > 0 ? (
+                <SegmentedVideoPlayer
+                  videoId={videoId}
+                  segments={videoSegments}
+                  onTimeUpdate={handleTimeUpdate}
+                  ref={playerRef}
+                  className="w-full"
+                />
+              ) : (
+                <VideoPlayer
+                  videoId={videoId}
+                  onTimeUpdate={handleTimeUpdate}
+                  ref={playerRef}
+                  segments={videoSegments}
+                  showSegmentMarkers={true}
+                  autoplay={true}
+                />
+              )}
+            </div>
 
-      <h1 className="text-2xl md:text-3xl font-bold mb-2">{video.title}</h1>
-      <p className="text-gray-600 mb-2">{video.channelTitle}</p>
-      
-      {!isVideoSaved && user && (
-        <div className="mb-6">
-          <Button onClick={handleSaveVideo}>Save to My Learning</Button>
+            <h1 className="text-2xl md:text-3xl font-bold mb-2">{video.title}</h1>
+            <p className="text-gray-600 mb-2">{video.channelTitle}</p>
+            
+            {!isVideoSaved && user && (
+              <div className="mb-6">
+                <Button onClick={handleSaveVideo}>Save to My Learning</Button>
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-6 lg:w-1/3">
+            {isVideoSaved && (
+              <ProgressTracker 
+                videoId={videoId}
+                onStatusChange={handleUpdateStatus}
+                initialStatus={userVideo?.status}
+              />
+            )}
+            
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
+              <h2 className="text-lg font-semibold mb-4">Ask a Question</h2>
+              <div className="space-y-4">
+                <Input
+                  value={userQuestion}
+                  onChange={(e) => setUserQuestion(e.target.value)}
+                  placeholder="Ask about this video..."
+                />
+                <Button 
+                  onClick={handleAskQuestion} 
+                  disabled={isAskingQuestion || !userQuestion.trim()}
+                  isLoading={isAskingQuestion}
+                  className="w-full"
+                >
+                  <MessageSquareText className="mr-2 h-4 w-4" />
+                  Ask Question
+                </Button>
+              </div>
+            </div>
+            
+            {/* Video segments list */}
+            {videoSegments.length > 0 && (
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
+                <h2 className="text-lg font-semibold mb-4">Video Segments</h2>
+                <div className="space-y-2">
+                  {videoSegments.map((segment, index) => (
+                    <button
+                      key={index}
+                      onClick={() => handleSeek(segment.startTime)}
+                      className="w-full text-left p-2 rounded hover:bg-gray-100 transition-colors flex items-center"
+                    >
+                      <span className="text-sm text-gray-500 mr-2">
+                        {formatTime(segment.startTime)}
+                      </span>
+                      <span className="flex-1 text-sm">{segment.title}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
-
-      <div className="grid md:grid-cols-3 gap-6 mt-8">
-        <div className="md:col-span-2 space-y-6">
-          <VideoSummaryCard
-            videoSummary={videoSummary || { summary: '', nextTopics: [] }}
-            isLoading={isSummaryLoading}
-            userQuestion={userQuestion}
-          />
-
-          {/* AI Video Assistant */}
-          <VideoAssistant videoId={videoId} videoTitle={video.title} />
-          
-          {/* Video Segments */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
-            <h2 className="text-xl font-semibold mb-4">Video Segments</h2>
-            <VideoSegments
-              videoId={videoId}
-              description={video.description || ''}
-              currentTime={currentTime}
-              duration={videoDuration}
-              onSeek={handleSeek}
-              onSegmentComplete={(segmentId) => {
-                // Handle segment completion
-                console.log(`Segment ${segmentId} completed`);
-              }}
-            />
-          </div>
-        </div>
-
-        <div className="space-y-6">
-          {isVideoSaved && (
-            <ProgressTracker 
-              videoId={videoId}
-              onStatusChange={handleUpdateStatus}
-              initialStatus={userVideo?.status}
-            />
-          )}
-          
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
-            <h2 className="text-lg font-semibold mb-4">Ask a Question</h2>
-            <div className="space-y-4">
-              <Input
-                value={userQuestion}
-                onChange={(e) => setUserQuestion(e.target.value)}
-                placeholder="Ask about this video..."
-              />
-              <Button 
-                onClick={handleAskQuestion} 
-                disabled={isAskingQuestion || !userQuestion.trim()}
-                isLoading={isAskingQuestion}
-                className="w-full"
-              >
-                <MessageSquareText className="mr-2 h-4 w-4" />
-                Ask Question
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   );
 };

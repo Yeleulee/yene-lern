@@ -41,51 +41,108 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Check authentication state on mount and when auth changes
   useEffect(() => {
-    const checkAuth = async () => {
+    let authInitialized = false;
+    setLoading(true);
+    
+    // First try to get user from localStorage for immediate UI response
+    const storedUser = localStorage.getItem(AUTH_USER_KEY);
+    if (storedUser) {
       try {
-        setLoading(true);
-        
-        // First try to get user from localStorage for immediate UI response
-        const storedUser = localStorage.getItem(AUTH_USER_KEY);
-        if (storedUser) {
-          setUser(JSON.parse(storedUser));
-        }
-        
-        // Then verify with Firebase
-        const firebaseUser = getCurrentUser();
-        
-        if (firebaseUser) {
-          // Update user with latest from Firebase if needed
-          setUser(firebaseUser);
-          persistUser(firebaseUser);
-        } else if (storedUser) {
-          // If Firebase doesn't have the user but localStorage does,
-          // this means the session expired - clear localStorage
-          localStorage.removeItem(AUTH_USER_KEY);
-          setUser(null);
-        }
-      } catch (error) {
-        console.error('Error checking authentication:', error);
-      } finally {
-        setLoading(false);
+        setUser(JSON.parse(storedUser));
+      } catch (e) {
+        console.error('Error parsing stored user:', e);
       }
-    };
+    }
     
-    // Perform initial auth check
-    checkAuth();
-    
-    // Set up a periodic check every 5 minutes to verify authentication
-    const intervalId = setInterval(() => {
-      const currentUser = getCurrentUser();
-      if (!currentUser && user) {
-        // If session expired, log the user out
+    // Set up Firebase auth state listener for persistence
+    const unsubscribe = initAuthStateListener((firebaseUser) => {
+      // Mark that we've received at least one auth state update
+      authInitialized = true;
+      
+      if (firebaseUser) {
+        // User is signed in
+        console.log('Auth state changed: User is signed in', firebaseUser.uid);
+        setUser(firebaseUser);
+        persistUser(firebaseUser);
+      } else {
+        // User is signed out
+        console.log('Auth state changed: User is signed out');
         setUser(null);
         persistUser(null);
       }
-    }, 5 * 60 * 1000); // 5 minutes
+      setLoading(false);
+    });
     
-    return () => clearInterval(intervalId);
+    // Set a timeout to ensure loading state is updated even if Firebase is slow
+    const timeoutId = setTimeout(() => {
+      if (!authInitialized) {
+        console.warn('Firebase auth initialization taking longer than expected');
+        // Don't change the user state, but stop showing loading indicator
+        // This allows the app to be usable with localStorage auth if Firebase is slow
+        setLoading(false);
+      }
+    }, 5000); // 5 second timeout
+    
+    // Cleanup the listener and timeout on unmount
+    return () => {
+      unsubscribe();
+      clearTimeout(timeoutId);
+    };
   }, []);
+
+  // Add a reconnection handler for when connection is restored
+  useEffect(() => {
+    const handleOnline = () => {
+      console.log('Network connection restored, checking auth state');
+      // Get the current Firebase user when we come back online
+      const currentUser = getCurrentUser();
+      
+      // If we have a user in localStorage but not in Firebase, logout
+      const storedUser = localStorage.getItem(AUTH_USER_KEY);
+      if (storedUser && !currentUser) {
+        console.warn('Network restored but auth session expired, logging out');
+        setUser(null);
+        persistUser(null);
+      }
+    };
+    
+    window.addEventListener('online', handleOnline);
+    return () => window.removeEventListener('online', handleOnline);
+  }, []);
+
+  // Handle token refresh failures and session expiry
+  useEffect(() => {
+    if (!user) return; // Only run when user is logged in
+    
+    // Set up checking for token expiry
+    const checkSession = () => {
+      const currentUser = getCurrentUser();
+      if (!currentUser && user) {
+        // If we have a user in context but Firebase reports no user,
+        // it likely means the token refresh failed
+        console.warn('Session appears to have expired, logging out');
+        setUser(null);
+        persistUser(null);
+        setError('Your session has expired. Please log in again.');
+      }
+    };
+    
+    // Check periodically (every 5 minutes)
+    const intervalId = setInterval(checkSession, 5 * 60 * 1000);
+    
+    // Also check when the app regains focus
+    const handleFocus = () => {
+      console.log('Window gained focus, checking auth session');
+      checkSession();
+    };
+    
+    window.addEventListener('focus', handleFocus);
+    
+    return () => {
+      clearInterval(intervalId);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [user]);
 
   const login = async (email: string, password: string) => {
     try {
@@ -99,7 +156,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error('Failed to login');
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'An error occurred during login';
+      console.error('Login error:', error);
+      
+      // Handle specific error types
+      let errorMessage = 'An error occurred during login';
+      if (error instanceof Error) {
+        // Provide more specific error messages for common issues
+        if (error.message.includes('wrong-password') || error.message.includes('user-not-found')) {
+          errorMessage = 'Invalid email or password';
+        } else if (error.message.includes('too-many-requests')) {
+          errorMessage = 'Too many failed login attempts. Please try again later.';
+        } else if (error.message.includes('network')) {
+          errorMessage = 'Network error. Please check your connection and try again.';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
       setError(errorMessage);
       throw new Error(errorMessage);
     } finally {
@@ -119,7 +192,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error('Failed to login with Google');
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'An error occurred during Google login';
+      console.error('Google login error:', error);
+      
+      // Provide user-friendly error messages
+      let errorMessage = 'An error occurred during Google login';
+      if (error instanceof Error) {
+        if (error.message === 'popup-blocked') {
+          errorMessage = 'The login popup was blocked. Please allow popups for this site.';
+        } else if (error.message === 'popup-closed-by-user') {
+          errorMessage = 'The login was cancelled.';
+        } else if (error.message.includes('network')) {
+          errorMessage = 'Network error. Please check your connection and try again.';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
       setError(errorMessage);
       throw new Error(errorMessage);
     } finally {

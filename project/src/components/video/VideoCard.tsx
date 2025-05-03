@@ -157,12 +157,17 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, onSave, onUpdateStatus, on
       tabIndex={0}
       aria-label={`${video.title} ${isPartOfCourse ? 'course' : hasSegments ? 'segmented course' : 'course'}`}
     >
-      <div className="relative aspect-video overflow-hidden">
+      <div className="relative aspect-video overflow-hidden flex items-center justify-center bg-black">
         <img
           src={video.thumbnailUrl}
           alt=""
-          className="w-full h-full object-cover transition-transform group-hover:scale-105"
+          className="max-w-full max-h-full object-contain transition-transform group-hover:scale-105"
+          style={{ width: 'auto', height: 'auto', maxHeight: '100%' }}
           loading="lazy"
+          onError={(e) => {
+            // Fallback for failed thumbnails
+            e.currentTarget.src = 'https://via.placeholder.com/480x360?text=Video+Thumbnail';
+          }}
         />
         {isPartOfCourse && (
           <div className="absolute top-2 left-2 bg-blue-600 text-white text-xs px-2 py-1 rounded-md flex items-center z-10">

@@ -44,10 +44,26 @@ setPersistence(auth, browserLocalPersistence)
     console.error("Error setting auth persistence:", error);
   });
 
+// Helper function to ensure auth persistence is properly set
+// This addresses edge cases where the persistence might not be applied correctly
+export const ensureAuthPersistence = async () => {
+  try {
+    // Re-apply persistence setting to be sure
+    await setPersistence(auth, browserLocalPersistence);
+    console.log("Firebase auth persistence re-confirmed as LOCAL");
+    return true;
+  } catch (error) {
+    console.error("Failed to set auth persistence:", error);
+    return false;
+  }
+};
+
 // Listen for auth state changes
 export const initAuthStateListener = (callback: (user: User | null) => void) => {
+  console.log("Setting up Firebase auth state listener");
   return onAuthStateChanged(auth, (firebaseUser) => {
     if (firebaseUser) {
+      console.log("Auth state changed: User logged in", firebaseUser.uid);
       const user: User = {
         uid: firebaseUser.uid,
         email: firebaseUser.email || '',
@@ -56,6 +72,7 @@ export const initAuthStateListener = (callback: (user: User | null) => void) => 
       };
       callback(user);
     } else {
+      console.log("Auth state changed: No user");
       callback(null);
     }
   });
@@ -64,6 +81,9 @@ export const initAuthStateListener = (callback: (user: User | null) => void) => 
 // Email/Password Authentication
 export async function signIn(email: string, password: string): Promise<User | null> {
   try {
+    // Ensure persistence is set first
+    await ensureAuthPersistence();
+    
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     return {
       uid: userCredential.user.uid,
@@ -80,6 +100,9 @@ export async function signIn(email: string, password: string): Promise<User | nu
 
 export async function signUp(email: string, password: string): Promise<User | null> {
   try {
+    // Ensure persistence is set first
+    await ensureAuthPersistence();
+    
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     return {
       uid: userCredential.user.uid,
@@ -96,6 +119,9 @@ export async function signUp(email: string, password: string): Promise<User | nu
 // Google Authentication
 export async function signInWithGoogle(): Promise<User | null> {
   try {
+    // Ensure persistence is set first
+    await ensureAuthPersistence();
+    
     // Configure Google provider with proper settings
     googleProvider.setCustomParameters({
       prompt: 'select_account',

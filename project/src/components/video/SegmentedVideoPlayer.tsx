@@ -201,6 +201,78 @@ const SegmentedVideoPlayer: React.FC<SegmentedVideoPlayerProps> = ({
     return Math.round((completedCount / segments.length) * 100);
   };
   
+  // Add explicit video playback on mount
+  useEffect(() => {
+    // Force video to play when component mounts
+    const playVideoTimer = setTimeout(() => {
+      if (playerRef.current) {
+        console.log('SegmentedVideoPlayer: Attempting to play video');
+        try {
+          playerRef.current.play();
+        } catch (e) {
+          console.error('Error playing video:', e);
+        }
+      }
+    }, 2000); // Give enough time for player to initialize
+    
+    return () => {
+      clearTimeout(playVideoTimer);
+    };
+  }, [videoId]);
+
+  // Enhanced error handling for when video fails to load or segments aren't available
+  useEffect(() => {
+    // Check if segments were successfully parsed
+    if (description && segments.length === 0) {
+      console.warn('No segments could be parsed from video description');
+    }
+    
+    // Log component mount for debugging
+    console.log(`SegmentedVideoPlayer mounted for videoId: ${videoId}`);
+    
+    return () => {
+      console.log(`SegmentedVideoPlayer unmounting for videoId: ${videoId}`);
+      
+      // Make sure to force stop the video when unmounting
+      if (playerRef.current) {
+        try {
+          // Use any of the methods that might work
+          playerRef.current.seekTo(0);
+          
+          // Also try to pause the video
+          try {
+            playerRef.current.pause();
+          } catch (e) {
+            console.error('Error pausing video during cleanup:', e);
+          }
+        } catch (e) {
+          console.error('Error cleaning up video player during unmount:', e);
+        }
+      }
+    };
+  }, [videoId, description, segments.length]);
+
+  // Handle window beforeunload to save segment completion state
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      // Save the current segment completion state and progress
+      try {
+        localStorage.setItem(`segment_completions_${videoId}`, JSON.stringify(completedSegments));
+        localStorage.setItem(`video_last_position_${videoId}`, currentTime.toString());
+      } catch (e) {
+        console.error('Error saving segment completions:', e);
+      }
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      // Also save on component unmount
+      handleBeforeUnload();
+    };
+  }, [videoId, completedSegments, currentTime]);
+  
   return (
     <div className="flex flex-col md:flex-row h-screen bg-white overflow-hidden">
       {/* Mobile toggle button */}
