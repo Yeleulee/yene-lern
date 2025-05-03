@@ -125,8 +125,10 @@ export function getPrevSection(courseId: string, currentSectionId: string): Cour
 // Helper function to get a course section by video ID
 export function getCourseSectionByVideoId(videoId: string): { course: CourseData, section: CourseSection } | undefined {
   for (const course of mockCourses) {
+    // Find the specific section in the course that matches the videoId
     const section = course.sections.find(section => section.videoId === videoId);
     if (section) {
+      // Return both the course and the exact section that matches the videoId
       return { course, section };
     }
   }

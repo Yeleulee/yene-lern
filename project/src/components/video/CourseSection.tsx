@@ -97,7 +97,7 @@ const CourseSection: React.FC<CourseSectionProps> = ({ courseId, videoId, video 
   // Setup course continuity tracking
   useEffect(() => {
     if (course && currentSection) {
-      // Store the current course context in localStorage
+      // Store the current course context in localStorage for persistence
       const courseContext: CourseContext = {
         courseId: course.id,
         currentSectionId: currentSection.id,
@@ -118,6 +118,9 @@ const CourseSection: React.FC<CourseSectionProps> = ({ courseId, videoId, video 
       // Update the progress in the course context
       courseContext.progress = progressPercent;
       localStorage.setItem('current_course_context', JSON.stringify(courseContext));
+      
+      // Update document title for better navigation history
+      document.title = `${currentSection.title} | ${course.title}`;
     }
   }, [course, currentSection]);
   
@@ -264,12 +267,25 @@ const CourseSection: React.FC<CourseSectionProps> = ({ courseId, videoId, video 
     }
   }, [currentSection?.description]);
   
+  // Log course context for debugging
+  useEffect(() => {
+    if (import.meta.env.MODE === 'development') {
+      console.log('Course Context:', {
+        courseId: activeCourseId, 
+        videoId: activeVideoId,
+        course: course?.title,
+        section: currentSection?.title,
+        index: currentIndex
+      });
+    }
+  }, [activeCourseId, activeVideoId, course, currentSection, currentIndex]);
+  
   if (!course || !currentSection) {
     return <div className="p-4 text-center">Course content not found</div>;
   }
   
   const handlePrevious = () => {
-    if (currentIndex > 0) {
+    if (currentIndex > 0 && course) {
       const prevSection = course.sections[currentIndex - 1];
       
       // Navigate while preserving course context
@@ -278,7 +294,7 @@ const CourseSection: React.FC<CourseSectionProps> = ({ courseId, videoId, video 
   };
   
   const handleNext = () => {
-    if (currentIndex < course.sections.length - 1) {
+    if (currentIndex < (course?.sections.length || 0) - 1 && course) {
       const nextSection = course.sections[currentIndex + 1];
       
       // Navigate while preserving course context

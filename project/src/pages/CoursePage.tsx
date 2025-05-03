@@ -97,7 +97,8 @@ const CourseDetail: React.FC = () => {
     // Verify the video is still available before navigating
     const courseData = getCourseSectionByVideoId(videoId);
     if (courseData) {
-      navigate(`/video/${videoId}`);
+      // Make sure to include the course ID in the URL when navigating to the video page
+      navigate(`/video/${videoId}?course=${courseData.course.id}`);
     } else {
       setError('This course is not available at the moment. Please try another course.');
     }
