@@ -19,7 +19,7 @@ import { getStorage, ref, uploadString, getDownloadURL, deleteObject } from 'fir
 // Firebase configuration with hardcoded values for deployment
 // In production, you would use environment variables more securely
 const firebaseConfig = {
-  apiKey: "AIzaSyCE0yUX6AVxi1c7hV8rruH_WQL3TC4508g",
+  apiKey: process.env.FIREBASE_API_KEY || import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: "yene-learn.firebaseapp.com",
   projectId: "yene-learn",
   storageBucket: "yene-learn.appspot.com",

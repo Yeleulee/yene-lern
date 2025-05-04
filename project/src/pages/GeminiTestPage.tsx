@@ -3,7 +3,7 @@ import { checkGeminiCompatibility } from '../services/geminiService';
 
 const GeminiTestPage: React.FC = () => {
   // Initialize with the provided API key
-  const [apiKey, setApiKey] = useState<string>("AIzaSyA7jQcLw_M0Dt6ZMQFf7VOsJsAPKo6h35Y");
+  const [apiKey, setApiKey] = useState<string>("");
   const [query, setQuery] = useState<string>('Explain how AI works');
   const [response, setResponse] = useState<string>('');
   const [status, setStatus] = useState<string>('');

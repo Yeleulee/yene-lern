@@ -1,7 +1,7 @@
 import { VideoSummary } from '../types/index';
 
 // Use the provided API key
-const API_KEY = "AIzaSyAVfoFGXM_wywyApXziZGMoP5wrsYhOsDI";
+const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 // Debug logging (only showing first 4 and last 4 characters for security)
 if (API_KEY) {
   const keyStart = API_KEY.substring(0, 4);
