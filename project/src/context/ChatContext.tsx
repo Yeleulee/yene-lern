@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
-import { askGemini, testGeminiConnection, checkGeminiCompatibility } from '../services/geminiService';
+import { askGemini, testGeminiConnection, checkGeminiCompatibility, updateApiKey } from '../services/geminiService';
 
 // Define types
 export interface Message {
@@ -20,6 +20,8 @@ interface ChatContextType {
   clearChat: () => void;
   checkConnection: () => Promise<boolean>;
   runCompatibilityCheck: () => Promise<{ success: boolean; message: string }>;
+  setApiKey: (key: string) => boolean;
+  resetAndReconnect: () => Promise<boolean>;
 }
 
 // Create context
@@ -331,16 +333,73 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem('chat_messages');
   };
 
+  // Set a new API key
+  const setApiKey = useCallback((key: string): boolean => {
+    try {
+      const success = updateApiKey(key);
+      if (success) {
+        // Trigger a connection check after setting the new key
+        setTimeout(() => {
+          checkConnection();
+        }, 500);
+      }
+      return success;
+    } catch (error) {
+      console.error('Error setting API key:', error);
+      return false;
+    }
+  }, [checkConnection]);
+
+  // Reset all API settings and try to reconnect
+  const resetAndReconnect = useCallback(async (): Promise<boolean> => {
+    try {
+      // Clear any stored API configurations
+      localStorage.removeItem('gemini_api_endpoint');
+      // Don't remove the API key to preserve user-set keys
+      
+      // Refresh connection status
+      setConnectionStatus('checking');
+      
+      // First try compatibility check to find best endpoint
+      const compatResult = await checkGeminiCompatibility();
+      if (compatResult.workingEndpoint) {
+        setConnectionStatus('connected');
+        setConnectionChecked(true);
+        return true;
+      }
+      
+      // If that fails, try simple connection check
+      const connectionResult = await testGeminiConnection();
+      if (connectionResult.success) {
+        setConnectionStatus('connected');
+        setConnectionChecked(true);
+        return true;
+      }
+      
+      // If nothing works, update status to disconnected
+      setConnectionStatus('disconnected');
+      return false;
+    } catch (error) {
+      console.error('Error in resetAndReconnect:', error);
+      setConnectionStatus('disconnected');
+      return false;
+    }
+  }, []);
+
   return (
-    <ChatContext.Provider value={{ 
-      messages, 
-      isLoading, 
-      connectionStatus,
-      sendMessage, 
-      clearChat,
-      checkConnection,
-      runCompatibilityCheck
-    }}>
+    <ChatContext.Provider
+      value={{
+        messages,
+        isLoading,
+        connectionStatus,
+        sendMessage,
+        clearChat,
+        checkConnection,
+        runCompatibilityCheck,
+        setApiKey,
+        resetAndReconnect,
+      }}
+    >
       {children}
     </ChatContext.Provider>
   );

@@ -157,18 +157,18 @@ const ExplorePage: React.FC = () => {
             </p>
             
             <div className="transition-all duration-300 hover:scale-[1.02]">
-              <SearchBar 
-                onSearch={handleSearch} 
-                isLoading={isSearching} 
+        <SearchBar 
+          onSearch={handleSearch} 
+          isLoading={isSearching} 
                 placeholder="Search for top-rated courses..."
                 className="shadow-xl"
-              />
+        />
             </div>
             
             <p className="text-sm text-blue-200 mt-3">
-              <GraduationCap className="inline-block mr-1" size={14} />
+          <GraduationCap className="inline-block mr-1" size={14} />
               Courses are ranked by student ratings and educational quality
-            </p>
+        </p>
           </div>
         </div>
       </div>
@@ -189,8 +189,8 @@ const ExplorePage: React.FC = () => {
           </div>
         )}
 
-        {!searchQuery && (
-          <>
+      {!searchQuery && (
+        <>
             {/* Featured Categories */}
             <div className="mb-12">
               <h2 className="text-2xl font-bold mb-6 text-gray-800 flex items-center">
@@ -280,60 +280,60 @@ const ExplorePage: React.FC = () => {
             <div className="mb-12">
               <h2 className="text-2xl font-bold mb-6 text-gray-800 flex items-center">
                 <BookOpen className="mr-2 text-blue-600" />
-                Popular Course Topics
-              </h2>
+              Popular Course Topics
+            </h2>
               <div className="flex flex-wrap gap-3 justify-center">
-                {popularTopics.map((topic) => (
-                  <button
-                    key={topic}
-                    onClick={() => handleTopicClick(topic)}
+              {popularTopics.map((topic) => (
+                <button
+                  key={topic}
+                  onClick={() => handleTopicClick(topic)}
                     className="px-4 py-2 bg-white rounded-full border border-gray-200 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 transition-colors text-sm font-medium shadow-sm"
-                  >
-                    {topic}
-                  </button>
-                ))}
-              </div>
+                >
+                  {topic}
+                </button>
+              ))}
             </div>
-          </>
-        )}
+          </div>
+        </>
+      )}
 
         {/* Search Results */}
         <div id="search-results">
-          {isSearching ? (
+      {isSearching ? (
             <div className="mt-8">
               <div className="h-6 bg-gray-300 rounded w-1/3 mb-6"></div>
               <div className="flex justify-center">
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
-                  {Array.from({ length: 6 }).map((_, i) => (
+          {Array.from({ length: 6 }).map((_, i) => (
                     <div key={i} className="card animate-pulse w-full">
-                      <div className="aspect-video bg-gray-300 rounded-lg mb-3"></div>
-                      <div className="h-6 bg-gray-300 rounded w-3/4 mb-2"></div>
-                      <div className="h-4 bg-gray-200 rounded w-1/2 mb-2"></div>
-                      <div className="h-4 bg-gray-200 rounded w-full mb-2"></div>
-                      <div className="h-4 bg-gray-200 rounded w-5/6 mb-4"></div>
-                      <div className="flex justify-end">
-                        <div className="h-8 bg-gray-300 rounded w-32"></div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+              <div className="aspect-video bg-gray-300 rounded-lg mb-3"></div>
+              <div className="h-6 bg-gray-300 rounded w-3/4 mb-2"></div>
+              <div className="h-4 bg-gray-200 rounded w-1/2 mb-2"></div>
+              <div className="h-4 bg-gray-200 rounded w-full mb-2"></div>
+              <div className="h-4 bg-gray-200 rounded w-5/6 mb-4"></div>
+              <div className="flex justify-end">
+                <div className="h-8 bg-gray-300 rounded w-32"></div>
               </div>
             </div>
-          ) : searchResults.length > 0 ? (
+          ))}
+                </div>
+              </div>
+        </div>
+      ) : searchResults.length > 0 ? (
             <div className="mt-8 animate-fade-in">
               <h2 className="text-2xl font-bold mb-6 text-gray-800 flex items-center">
                 <GraduationCap className="mr-2 text-blue-600" />
                 Courses for "{searchQuery}"
-              </h2>
+          </h2>
               <div className="flex justify-center">
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
-                  {searchResults.map((video) => (
+            {searchResults.map((video) => (
                     <div key={video.id} className="flex flex-col h-full bg-white rounded-lg overflow-hidden shadow-sm">
-                      <VideoCard
-                        video={video}
-                        onSave={user ? handleSaveVideo : undefined}
-                        isSaved={isVideoSaved(video.id)}
-                      />
+              <VideoCard
+                video={video}
+                onSave={user ? handleSaveVideo : undefined}
+                isSaved={isVideoSaved(video.id)}
+              />
                       <div className="p-3 pt-0 flex justify-between items-center border-t border-gray-100">
                         <div className="flex items-center">
                           <button 
@@ -356,17 +356,17 @@ const ExplorePage: React.FC = () => {
                     </div>
                   ))}
                 </div>
-              </div>
-            </div>
-          ) : searchQuery ? (
+          </div>
+        </div>
+      ) : searchQuery ? (
             <div className="text-center py-16 rounded-xl bg-white shadow-sm border border-gray-100 mt-8 animate-fade-in">
-              <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
-                <SearchIcon size={32} className="text-gray-400" />
-              </div>
-              <h3 className="text-xl font-medium mb-2">No courses found</h3>
+          <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
+            <SearchIcon size={32} className="text-gray-400" />
+          </div>
+          <h3 className="text-xl font-medium mb-2">No courses found</h3>
               <p className="text-gray-600 max-w-md mx-auto">
                 No educational courses found for "{searchQuery}". Try a different search term or browse our popular topics.
-              </p>
+          </p>
               <div className="mt-6">
                 <button
                   onClick={() => setSearchQuery('')}

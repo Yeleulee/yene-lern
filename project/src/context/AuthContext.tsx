@@ -79,7 +79,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.warn('Firebase auth initialization taking longer than expected');
         // Don't change the user state, but stop showing loading indicator
         // This allows the app to be usable with localStorage auth if Firebase is slow
-        setLoading(false);
+    setLoading(false);
       }
     }, 5000); // 5 second timeout
     

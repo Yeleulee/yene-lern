@@ -169,11 +169,11 @@ const MyLearningPage: React.FC = () => {
                 <div className="grid md:grid-cols-2 gap-6">
                   {filteredVideos.map((video) => (
                     <div key={video.id} className="flex flex-col h-full">
-                      <VideoCard
-                        video={video}
-                        onUpdateStatus={updateStatus}
-                        onRemove={removeVideo}
-                      />
+                    <VideoCard
+                      video={video}
+                      onUpdateStatus={updateStatus}
+                      onRemove={removeVideo}
+                    />
                     </div>
                   ))}
                 </div>
@@ -260,11 +260,11 @@ const MyLearningPage: React.FC = () => {
               <div className="grid md:grid-cols-2 gap-6">
                 {filteredVideos.map((video) => (
                   <div key={video.id} className="flex flex-col h-full">
-                    <VideoCard
-                      video={video}
-                      onUpdateStatus={updateStatus}
-                      onRemove={removeVideo}
-                    />
+                  <VideoCard
+                    video={video}
+                    onUpdateStatus={updateStatus}
+                    onRemove={removeVideo}
+                  />
                   </div>
                 ))}
               </div>

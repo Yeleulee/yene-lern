@@ -2,6 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, CheckCircle, BookmarkPlus, ArrowLeft, Menu, X } from 'lucide-react';
 import { getCourseSectionByVideoId, getNextSection, getPrevSection } from '../../data/mockCourseData';
+import { useLearning } from '../../context/LearningContext';
+import { useAuth } from '../../context/AuthContext';
+import VideoPlayer from './VideoPlayer';
+import Button from '../ui/Button';
 
 interface CourseVideoPlayerProps {
   videoId: string;
@@ -21,6 +25,11 @@ const CourseVideoPlayer: React.FC<CourseVideoPlayerProps> = ({ videoId }) => {
     currentSection: any;
     currentIndex: number;
   } | null>(null);
+  
+  const { user } = useAuth();
+  const { updateProgress } = useLearning();
+  const lastTrackedProgressRef = useRef(0);
+  const lastProgressUpdateTimeRef = useRef(Date.now());
   
   // Check window size on mount and resize
   useEffect(() => {
@@ -140,6 +149,36 @@ const CourseVideoPlayer: React.FC<CourseVideoPlayerProps> = ({ videoId }) => {
       if (prevSection) {
         navigate(`/video/${prevSection.videoId}`);
       }
+    }
+  };
+
+  // Add progress tracking function
+  const handleProgressUpdate = (currentTime: number, duration: number) => {
+    if (!iframeRef.current || isNaN(duration) || duration <= 0 || !currentCourseData) return;
+    
+    const progressPercent = Math.floor((currentTime / duration) * 100);
+    
+    // Don't update too frequently - use a throttle
+    if (
+      progressPercent % 5 === 0 && // Track at 5% intervals
+      progressPercent !== lastTrackedProgressRef.current &&
+      user
+    ) {
+      lastTrackedProgressRef.current = progressPercent;
+      
+      // Calculate watch time since last update
+      const now = Date.now();
+      const timeSinceLastUpdate = (now - lastProgressUpdateTimeRef.current) / 1000; // in seconds
+      lastProgressUpdateTimeRef.current = now;
+      
+      // Track progress in LearningContext
+      updateProgress(currentCourseData.currentSection.videoId, progressPercent)
+        .then(() => {
+          console.log(`Progress tracked: ${progressPercent}%`);
+        })
+        .catch(error => {
+          console.error('Error tracking progress:', error);
+        });
     }
   };
 
@@ -273,16 +312,13 @@ const CourseVideoPlayer: React.FC<CourseVideoPlayerProps> = ({ videoId }) => {
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Video Player */}
           <div className="w-full bg-black">
-            <iframe
-              src={`https://www.youtube.com/embed/${videoId}?rel=0&enablejsapi=1`}
-              title="YouTube video player"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-              className="w-full aspect-video"
-              onLoad={handleIframeLoad}
-              onError={handleIframeError}
+            <VideoPlayer
               ref={iframeRef}
-            ></iframe>
+              videoId={currentCourseData.currentSection.videoId}
+              title={currentCourseData.currentSection.title}
+              onVideoEnd={handleMarkComplete}
+              onVideoProgress={handleProgressUpdate}
+            />
           </div>
 
           {/* Course Content */}

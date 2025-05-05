@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Sparkles, Loader, User, Eraser, BookOpen, AlertCircle } from 'lucide-react';
+import { Send, Sparkles, Loader, User, Eraser, BookOpen, AlertCircle, KeyRound, RefreshCw } from 'lucide-react';
 import { useChat } from '../../context/ChatContext';
 import Button from './Button';
+import ApiKeyForm from './ApiKeyForm';
 
 interface LearningChatInterfaceProps {
   title?: string;
@@ -10,7 +11,7 @@ interface LearningChatInterfaceProps {
 const LearningChatInterface: React.FC<LearningChatInterfaceProps> = ({ 
   title = "AI Learning Assistant"
 }) => {
-  const { messages, isLoading, sendMessage, clearChat, connectionStatus, checkConnection, runCompatibilityCheck } = useChat();
+  const { messages, isLoading, sendMessage, clearChat, connectionStatus, checkConnection, runCompatibilityCheck, resetAndReconnect } = useChat();
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -83,6 +84,42 @@ const LearningChatInterface: React.FC<LearningChatInterfaceProps> = ({
     }
   };
 
+  const handleSetNewApiKey = () => {
+    setCompatibilityStatus("API key saved successfully! Checking connection...");
+    setTimeout(async () => {
+      const result = await checkConnection();
+      if (result) {
+        setCompatibilityStatus("Connection successful! Refreshing...");
+        setTimeout(() => window.location.reload(), 1000);
+      } else {
+        setCompatibilityStatus("Connection test failed. The API key may be invalid or restricted.");
+      }
+    }, 500);
+  };
+
+  // Add new function to force reconnection with the default key
+  const forceReconnectWithDefaultKey = async () => {
+    setCompatibilityStatus("Resetting connection and trying to reconnect...");
+    setIsCheckingCompatibility(true);
+    
+    try {
+      // Use our new reset function
+      const result = await resetAndReconnect();
+      
+      if (result) {
+        setCompatibilityStatus("Connection successful! Refreshing...");
+        setTimeout(() => window.location.reload(), 1000);
+      } else {
+        setCompatibilityStatus("Could not establish connection. Please check your internet and try again.");
+      }
+    } catch (error) {
+      console.error("Error during reconnection:", error);
+      setCompatibilityStatus("Error during reconnection attempt.");
+    } finally {
+      setIsCheckingCompatibility(false);
+    }
+  };
+
   // Example prompt suggestions for learning
   const examplePrompts = [
     "How can I improve my learning efficiency?",
@@ -107,60 +144,86 @@ const LearningChatInterface: React.FC<LearningChatInterfaceProps> = ({
         <div className="chat-messages bg-white">
           <div className="h-full flex flex-col items-center justify-center text-center p-6">
             <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
-              <AlertCircle className="text-red-600" size={24} />
+              <KeyRound className="text-red-600" size={24} />
             </div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">AI Service Connection Issue</h3>
             <p className="text-gray-700 max-w-md mb-4">
-              The AI chat functionality is unable to connect to the Gemini API. This needs to be resolved for the AI chat to function properly.
+              The AI chat functionality is unable to connect to the Gemini API. We're trying to use the default API key.
             </p>
-            <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 text-left w-full max-w-md mb-6">
-              <h4 className="font-medium text-gray-900 mb-2">Troubleshooting Steps:</h4>
-              <ol className="list-decimal pl-5 text-gray-700 text-sm space-y-2">
-                <li>Verify internet connectivity</li>
-                <li>Check that the API key has been properly activated in <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Google AI Studio</a></li>
-                <li>Ensure the API key has proper permissions for the Gemini model</li>
-                <li>Verify there are no region restrictions on your API key</li>
-                <li>Try the compatibility check below to test different API endpoints</li>
-              </ol>
+            
+            {/* First try automatic reconnection */}
+            <div className="w-full max-w-md mb-6">
+              <Button 
+                className="w-full mb-4 flex items-center justify-center gap-2"
+                variant="primary"
+                disabled={isCheckingCompatibility}
+                onClick={forceReconnectWithDefaultKey}
+              >
+                {isCheckingCompatibility ? (
+                  <>
+                    <RefreshCw className="animate-spin" size={18} />
+                    Reconnecting...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw size={18} />
+                    Reset Connection & Try Again
+                  </>
+                )}
+              </Button>
+              
+              <div className="flex gap-2 w-full">
+                <Button 
+                  variant="outline"
+                  className="flex-1"
+                  disabled={isCheckingCompatibility}
+                  onClick={handleCompatibilityCheck}
+                >
+                  {isCheckingCompatibility ? 'Checking...' : 'Run Compatibility Check'}
+                </Button>
+                
+                <Button 
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => window.location.reload()}
+                >
+                  Refresh Page
+                </Button>
+              </div>
             </div>
+            
             {compatibilityStatus && (
               <div className={`w-full max-w-md mb-4 p-3 rounded text-sm ${
-                compatibilityStatus.includes('Success') 
+                compatibilityStatus.includes('Success') || compatibilityStatus.includes('successful')
                   ? 'bg-green-100 text-green-800' 
-                  : compatibilityStatus.includes('failed') 
+                  : compatibilityStatus.includes('failed') || compatibilityStatus.includes('Could not connect')
                     ? 'bg-red-100 text-red-800'
                     : 'bg-blue-100 text-blue-800'
               }`}>
                 {compatibilityStatus}
               </div>
             )}
-            <div className="flex flex-wrap gap-3 justify-center">
-              <Button onClick={() => window.location.reload()}>
-                Refresh Page
-              </Button>
-              <Button 
-                variant="outline" 
-                disabled={isCheckingCompatibility}
-                onClick={async () => {
-                  setCompatibilityStatus("Testing connection...");
-                  const result = await checkConnection();
-                  if (result) {
-                    setCompatibilityStatus("Connection successful! Refreshing...");
-                    setTimeout(() => window.location.reload(), 1000);
-                  } else {
-                    setCompatibilityStatus("Connection test failed. Please check API key and network.");
-                  }
-                }}
-              >
-                Test Connection
-              </Button>
-              <Button 
-                variant="outline"
-                disabled={isCheckingCompatibility}
-                onClick={handleCompatibilityCheck}
-              >
-                {isCheckingCompatibility ? 'Checking...' : 'Run Compatibility Check'}
-              </Button>
+            
+            {/* Only show API key form if automatic attempts fail */}
+            <div className="w-full max-w-md mt-2">
+              <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 text-left mb-4">
+                <h4 className="font-medium text-gray-900 mb-2">Common issues:</h4>
+                <ul className="list-disc pl-5 text-gray-700 text-sm space-y-1">
+                  <li>Network connectivity problems</li>
+                  <li>API key may have reached its quota limit</li>
+                  <li>Region restrictions on the API</li>
+                  <li>Gemini API service may be temporarily unavailable</li>
+                </ul>
+              </div>
+              
+              <details className="mb-4">
+                <summary className="cursor-pointer text-blue-600 hover:text-blue-800 font-medium">
+                  Use your own API key (Advanced)
+                </summary>
+                <div className="mt-4">
+                  <ApiKeyForm onSuccess={handleSetNewApiKey} />
+                </div>
+              </details>
             </div>
           </div>
         </div>

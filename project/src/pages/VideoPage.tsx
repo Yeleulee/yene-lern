@@ -252,7 +252,7 @@ const VideoPage: React.FC = () => {
         } catch (e) {
           console.error('Error using YT.get seeking:', e);
         }
-      } else {
+    } else {
         // Last resort - try to find ALL iframes and use the first YouTube one
         console.log('No specific iframe found, trying all iframes...');
         const allIframes = document.querySelectorAll('iframe');
@@ -261,10 +261,10 @@ const VideoPage: React.FC = () => {
           if (iframe.src && iframe.src.includes('youtube.com/embed/')) {
             try {
               iframe.contentWindow?.postMessage(JSON.stringify({
-                event: 'command',
-                func: 'seekTo',
-                args: [time, true]
-              }), '*');
+          event: 'command',
+          func: 'seekTo',
+          args: [time, true]
+        }), '*');
               console.log('Sent seek command to iframe:', iframe);
               break;
             } catch (e) {
@@ -370,55 +370,55 @@ const VideoPage: React.FC = () => {
             {/* Video player - centered with explicit styling */}
             <div className="w-full mb-4 bg-black rounded-lg overflow-hidden flex justify-center items-center">
               <div className="w-full max-w-3xl mx-auto">
-                <VideoPlayer
-                  videoId={videoId}
-                  onTimeUpdate={handleTimeUpdate}
-                  ref={playerRef}
-                  segments={videoSegments}
+        <VideoPlayer 
+          videoId={videoId} 
+          onTimeUpdate={handleTimeUpdate}
+          ref={playerRef}
+          segments={videoSegments}
                   showSegmentMarkers={videoSegments.length > 0}
                   autoplay={true}
-                />
+        />
               </div>
-            </div>
+      </div>
 
             <div className="max-w-3xl mx-auto w-full">
-              <h1 className="text-2xl md:text-3xl font-bold mb-2">{video.title}</h1>
-              <p className="text-gray-600 mb-2">{video.channelTitle}</p>
-              
-              {!isVideoSaved && user && (
-                <div className="mb-6">
-                  <Button onClick={handleSaveVideo}>Save to My Learning</Button>
-                </div>
-              )}
+      <h1 className="text-2xl md:text-3xl font-bold mb-2">{video.title}</h1>
+      <p className="text-gray-600 mb-2">{video.channelTitle}</p>
+      
+      {!isVideoSaved && user && (
+        <div className="mb-6">
+          <Button onClick={handleSaveVideo}>Save to My Learning</Button>
+        </div>
+      )}
             </div>
-          </div>
+        </div>
 
           <div className="space-y-6 lg:w-1/3">
-            {isVideoSaved && (
-              <ProgressTracker 
-                videoId={videoId}
-                onStatusChange={handleUpdateStatus}
-                initialStatus={userVideo?.status}
+          {isVideoSaved && (
+            <ProgressTracker 
+              videoId={videoId}
+              onStatusChange={handleUpdateStatus}
+              initialStatus={userVideo?.status}
+            />
+          )}
+          
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
+            <h2 className="text-lg font-semibold mb-4">Ask a Question</h2>
+            <div className="space-y-4">
+              <Input
+                value={userQuestion}
+                onChange={(e) => setUserQuestion(e.target.value)}
+                placeholder="Ask about this video..."
               />
-            )}
-            
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
-              <h2 className="text-lg font-semibold mb-4">Ask a Question</h2>
-              <div className="space-y-4">
-                <Input
-                  value={userQuestion}
-                  onChange={(e) => setUserQuestion(e.target.value)}
-                  placeholder="Ask about this video..."
-                />
-                <Button 
-                  onClick={handleAskQuestion} 
-                  disabled={isAskingQuestion || !userQuestion.trim()}
-                  isLoading={isAskingQuestion}
-                  className="w-full"
-                >
-                  <MessageSquareText className="mr-2 h-4 w-4" />
-                  Ask Question
-                </Button>
+              <Button 
+                onClick={handleAskQuestion} 
+                disabled={isAskingQuestion || !userQuestion.trim()}
+                isLoading={isAskingQuestion}
+                className="w-full"
+              >
+                <MessageSquareText className="mr-2 h-4 w-4" />
+                Ask Question
+              </Button>
               </div>
             </div>
             

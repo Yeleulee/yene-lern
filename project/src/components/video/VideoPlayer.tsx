@@ -1,4 +1,6 @@
 import React, { useRef, useEffect, useState, forwardRef, useImperativeHandle } from 'react';
+import { useLearning } from '../../context/LearningContext';
+import { useAuth } from '../../context/AuthContext';
 
 // Define a global YouTube Player API interface
 declare global {
@@ -37,11 +39,14 @@ declare global {
 
 interface VideoPlayerProps {
   videoId: string;
+  title?: string;
   onTimeUpdate?: (currentTime: number, duration: number) => void;
   className?: string;
   autoplay?: boolean;
   segments?: { startTime: number; title: string }[];
   showSegmentMarkers?: boolean;
+  onVideoEnd?: () => void;
+  onVideoProgress?: (currentTime: number, duration: number) => void;
 }
 
 export interface VideoPlayerHandle {
@@ -55,11 +60,14 @@ export interface VideoPlayerHandle {
 
 const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(({ 
   videoId, 
+  title,
   onTimeUpdate,
   className = '', 
   autoplay = false,
   segments = [],
-  showSegmentMarkers = false
+  showSegmentMarkers = false,
+  onVideoEnd,
+  onVideoProgress
 }, ref) => {
   const playerContainerRef = useRef<HTMLDivElement>(null);
   const playerInstanceRef = useRef<any>(null);
@@ -69,6 +77,9 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(({
   const [duration, setDuration] = useState(0);
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const playerIdRef = useRef(`youtube-player-${videoId || Math.random().toString(36).substr(2, 9)}`);
+  const progressRef = useRef(0);
+  const lastTrackedProgressRef = useRef(0);
+  const lastProgressUpdateTimeRef = useRef(Date.now());
   
   // Add YouTube API script with improved initialization
   useEffect(() => {
@@ -172,8 +183,8 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(({
           try {
             // Send message to iframe to seek to specific time
             iframe.contentWindow?.postMessage(JSON.stringify({
-              event: 'command',
-              func: 'seekTo',
+                  event: 'command',
+                  func: 'seekTo',
               args: [time, true]
             }), '*');
           } catch (e) {
@@ -260,11 +271,11 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(({
           }
         } catch (e) {
           console.error('Error handling YouTube message:', e);
-        }
-      };
-      
-      window.addEventListener('message', handleMessage);
-      
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    
       // Send initial command to start playing
       setTimeout(() => {
         try {
@@ -279,8 +290,8 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(({
       }, 1000);
       
       // Return cleanup function
-      return () => {
-        window.removeEventListener('message', handleMessage);
+    return () => {
+      window.removeEventListener('message', handleMessage);
         if (timeUpdateInterval) {
           clearInterval(timeUpdateInterval);
         }
@@ -312,9 +323,9 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(({
           for (const iframe of iframes) {
             if (iframe.src && iframe.src.includes('youtube.com/embed/')) {
               iframe.contentWindow?.postMessage(JSON.stringify({
-                event: 'command',
-                func: 'seekTo',
-                args: [time, true]
+          event: 'command',
+          func: 'seekTo',
+          args: [time, true]
               }), '*');
               console.log('Sent seek command to found YouTube iframe');
               return true;
@@ -378,23 +389,60 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(({
     };
   }, [videoId]);
   
+  // Update this function to track progress correctly
+  const updateProgress = (currentTime: number, duration: number) => {
+    if (!playerContainerRef.current || isNaN(duration) || duration <= 0) return;
+    
+    const progressPercent = Math.floor((currentTime / duration) * 100);
+    
+    // Update progress state
+    progressRef.current = progressPercent;
+    
+    // Don't update too frequently - use a throttle
+    if (
+      progressPercent % 5 === 0 && // Track at 5% intervals
+      progressPercent !== lastTrackedProgressRef.current &&
+      user
+    ) {
+      lastTrackedProgressRef.current = progressPercent;
+      
+      // Calculate watch time since last update
+      const now = Date.now();
+      const timeSinceLastUpdate = (now - lastProgressUpdateTimeRef.current) / 1000; // in seconds
+      lastProgressUpdateTimeRef.current = now;
+      
+      // Track progress in Firebase
+      trackVideoProgress(user.uid, videoId, progressPercent, timeSinceLastUpdate)
+        .then(() => {
+          console.log(`Progress tracked: ${progressPercent}%`);
+          // If this is a saved video, also update the learning context
+          if (isUserVideo && onProgressUpdate) {
+            onProgressUpdate(videoId, progressPercent);
+          }
+        })
+        .catch(error => {
+          console.error('Error tracking progress:', error);
+        });
+    }
+  };
+  
   // Use a much simpler, direct approach that's guaranteed to work
   return (
     <div className={`video-player-container w-full ${className}`} style={{ aspectRatio: '16/9' }}>
       <div className="relative w-full h-full flex justify-center items-center overflow-hidden">
         {/* Static iframe approach for maximum compatibility */}
         <div className="w-full h-full">
-          <iframe
+        <iframe
             id={playerIdRef.current}
             src={`https://www.youtube.com/embed/${videoId}?autoplay=1&controls=1&rel=0&modestbranding=1&playsinline=1&enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}`}
             className="absolute inset-0 w-full h-full"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
             title="YouTube video player"
             style={{ border: 'none' }}
-          ></iframe>
-        </div>
-        
+        ></iframe>
+      </div>
+      
         {/* YouTube direct link */}
         <a 
           href={`https://www.youtube.com/watch?v=${videoId}`}
@@ -408,13 +456,13 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(({
           </svg>
           YouTube
         </a>
-      </div>
-      
+          </div>
+          
       {/* Simple time display */}
       {showSegmentMarkers && segments && segments.length > 0 && (
         <div className="bg-gray-900 text-white p-2 text-xs flex justify-between">
-          <span>{formatTime(currentTime)}</span>
-          <span>{formatTime(duration)}</span>
+            <span>{formatTime(currentTime)}</span>
+            <span>{formatTime(duration)}</span>
         </div>
       )}
     </div>

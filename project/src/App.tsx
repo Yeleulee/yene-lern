@@ -85,39 +85,39 @@ function App() {
                 <Header />
                 <main className="flex-grow main-content">
                   <PageTransitionWrapper>
-                    <Routes>
-                      <Route path="/" element={<HomePage />} />
-                      <Route path="/login" element={<LoginPage />} />
-                      <Route path="/signup" element={<SignupPage />} />
-                      <Route 
-                        path="/dashboard" 
-                        element={
-                          <ProtectedRoute>
-                            <DashboardPage />
-                          </ProtectedRoute>
-                        } 
-                      />
-                      <Route path="/explore" element={<ExplorePage />} />
-                      <Route path="/video/:videoId" element={<VideoPage />} />
-                      <Route path="/course/:courseId" element={<CoursePage />} />
-                      <Route 
-                        path="/my-learning" 
-                        element={
-                          <ProtectedRoute>
-                            <MyLearningPage />
-                          </ProtectedRoute>
-                        } 
-                      />
-                      <Route 
-                        path="/profile" 
-                        element={
-                          <ProtectedRoute>
-                            <ProfilePage />
-                          </ProtectedRoute>
-                        } 
-                      />
-                      <Route path="/gemini-test" element={<GeminiTestPage />} />
-                    </Routes>
+                  <Routes>
+                    <Route path="/" element={<HomePage />} />
+                    <Route path="/login" element={<LoginPage />} />
+                    <Route path="/signup" element={<SignupPage />} />
+                    <Route 
+                      path="/dashboard" 
+                      element={
+                        <ProtectedRoute>
+                          <DashboardPage />
+                        </ProtectedRoute>
+                      } 
+                    />
+                    <Route path="/explore" element={<ExplorePage />} />
+                    <Route path="/video/:videoId" element={<VideoPage />} />
+                    <Route path="/course/:courseId" element={<CoursePage />} />
+                    <Route 
+                      path="/my-learning" 
+                      element={
+                        <ProtectedRoute>
+                          <MyLearningPage />
+                        </ProtectedRoute>
+                      } 
+                    />
+                    <Route 
+                      path="/profile" 
+                      element={
+                        <ProtectedRoute>
+                          <ProfilePage />
+                        </ProtectedRoute>
+                      } 
+                    />
+                    <Route path="/gemini-test" element={<GeminiTestPage />} />
+                  </Routes>
                   </PageTransitionWrapper>
                 </main>
 

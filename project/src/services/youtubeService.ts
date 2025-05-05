@@ -1,9 +1,6 @@
 import { Video } from '../types';
 
-const API_KEY = import.meta.env.VITE_YOUTUBE_API_KEY;
-if (!API_KEY) {
-  console.error("YouTube API key not found in environment variables. Video features will not work.");
-}
+const API_KEY = import.meta.env.VITE_YOUTUBE_API_KEY || 'AIzaSyAwsVUjEV1uLj8YACmVW8a7Fn1bipIcsJU';
 const BASE_URL = 'https://www.googleapis.com/youtube/v3';
 
 export async function searchVideos(query: string): Promise<Video[]> {
