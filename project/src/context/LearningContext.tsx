@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { UserVideo, Video, LearningStatus } from '../types';
-import { getUserVideos, saveVideo, updateVideoStatus, removeVideo, trackVideoProgress } from '../services/firebaseService';
+import { getUserVideos, saveVideo, updateVideoStatus, removeVideo } from '../services/firebaseService';
 import { useAuth } from './AuthContext';
 
 interface LearningContextType {
@@ -9,7 +9,6 @@ interface LearningContextType {
   error: string | null;
   addVideo: (video: Video) => Promise<void>;
   updateStatus: (videoId: string, status: LearningStatus) => Promise<void>;
-  updateProgress: (videoId: string, progress: number) => Promise<void>;
   getVideoById: (videoId: string) => UserVideo | undefined;
   removeVideo: (videoId: string) => Promise<void>;
 }
@@ -97,47 +96,6 @@ export function LearningProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const updateProgress = async (videoId: string, progress: number) => {
-    if (!user) {
-      throw new Error('User must be logged in to update video progress');
-    }
-
-    try {
-      setLoading(true);
-      // Calculate a minimal watch time for this progress update (1 second as minimum)
-      const watchTimeSeconds = 1;
-      
-      // Update progress in Firebase
-      await trackVideoProgress(user.uid, videoId, progress, watchTimeSeconds);
-      
-      // Update local state
-      setUserVideos((prev) =>
-        prev.map((video) =>
-          video.id === videoId 
-            ? { 
-                ...video, 
-                progress, 
-                // Also update status based on progress
-                status: progress >= 90 
-                  ? 'completed' 
-                  : progress > 10 
-                    ? 'in-progress' 
-                    : video.status 
-              } 
-            : video
-        )
-      );
-      
-      return Promise.resolve();
-    } catch (error) {
-      console.error('Error updating video progress:', error);
-      setError(error instanceof Error ? error.message : 'Failed to update video progress');
-      return Promise.resolve();
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleRemoveVideo = async (videoId: string) => {
     if (!user) {
       throw new Error('User must be logged in to remove videos');
@@ -173,7 +131,6 @@ export function LearningProvider({ children }: { children: ReactNode }) {
         error,
         addVideo,
         updateStatus,
-        updateProgress,
         getVideoById,
         removeVideo: handleRemoveVideo,
       }}

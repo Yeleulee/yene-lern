@@ -140,10 +140,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, onSave, onUpdateStatus, on
   const difficulty = getDifficultyLevel(video);
   
   // Calculate progress percentage for in-progress videos
-  const progressPercentage = isUserVideo ? (video as UserVideo).progress || 0 : 0;
-  
-  // Display progress bar only for in-progress or completed videos
-  const shouldShowProgress = isUserVideo && ((video as UserVideo).status === 'in-progress' || (video as UserVideo).status === 'completed');
+  const progressPercentage = isUserVideo && (video as UserVideo).status === 'in-progress' ? 35 : 0;
   
   // Generate the correct link with course context if part of a course
   const getVideoLink = () => {
@@ -229,14 +226,11 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, onSave, onUpdateStatus, on
           </div>
         )}
         
-        {/* Progress indicator for user videos */}
-        {isUserVideo && shouldShowProgress && (
+        {/* Progress bar for user videos that are in progress */}
+        {isUserVideo && (video as UserVideo).status === 'in-progress' && (
           <div className="absolute bottom-0 left-0 right-0 h-1 bg-gray-700">
-            <div className="flex items-center justify-between px-1" style={{position: 'absolute', bottom: '4px', width: '100%', fontSize: '8px'}}>
-              <span className="text-white bg-black bg-opacity-50 px-1 rounded">{progressPercentage}%</span>
-            </div>
             <div 
-              className={`h-full ${(video as UserVideo).status === 'completed' ? 'bg-green-500' : 'bg-blue-500'}`}
+              className="h-full bg-blue-500"
               style={{ width: `${progressPercentage}%` }}
               aria-label={`${progressPercentage}% complete`}
             ></div>

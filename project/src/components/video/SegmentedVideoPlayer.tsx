@@ -12,10 +12,6 @@ import {
 import VideoPlayer, { VideoPlayerHandle } from './VideoPlayer';
 import VideoSegments from './VideoSegments';
 import Button from '../ui/Button';
-import { parseSegmentsFromDescription } from './TimestampParser';
-import { useLearning } from '../../context/LearningContext';
-import { useAuth } from '../../context/AuthContext';
-import { trackVideoProgress } from '../../services/firebaseService';
 
 interface SegmentedVideoPlayerProps {
   videoId: string;
@@ -41,10 +37,6 @@ const SegmentedVideoPlayer: React.FC<SegmentedVideoPlayerProps> = ({
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [completedSegments, setCompletedSegments] = useState<Record<string, boolean>>({});
   const playerRef = useRef<VideoPlayerHandle>(null);
-  const { user } = useAuth();
-  const { updateProgress } = useLearning();
-  const lastTrackedProgressRef = useRef(0);
-  const lastProgressUpdateTimeRef = useRef(Date.now());
   
   // Parse video description for timestamps to create segments
   useEffect(() => {
@@ -209,36 +201,6 @@ const SegmentedVideoPlayer: React.FC<SegmentedVideoPlayerProps> = ({
     return Math.round((completedCount / segments.length) * 100);
   };
   
-  // Function to handle progress tracking
-  const handleProgressUpdate = (currentTime: number, duration: number) => {
-    if (!playerRef.current || isNaN(duration) || duration <= 0 || !videoId) return;
-    
-    const progressPercent = Math.floor((currentTime / duration) * 100);
-    
-    // Don't update too frequently - use a throttle
-    if (
-      progressPercent % 5 === 0 && // Track at 5% intervals
-      progressPercent !== lastTrackedProgressRef.current &&
-      user
-    ) {
-      lastTrackedProgressRef.current = progressPercent;
-      
-      // Calculate watch time since last update
-      const now = Date.now();
-      const timeSinceLastUpdate = (now - lastProgressUpdateTimeRef.current) / 1000; // in seconds
-      lastProgressUpdateTimeRef.current = now;
-      
-      // Track progress in LearningContext
-      updateProgress(videoId, progressPercent)
-        .then(() => {
-          console.log(`Progress tracked: ${progressPercent}%`);
-        })
-        .catch(error => {
-          console.error('Error tracking progress:', error);
-        });
-    }
-  };
-  
   // Add explicit video playback on mount
   useEffect(() => {
     // Force video to play when component mounts
@@ -310,21 +272,6 @@ const SegmentedVideoPlayer: React.FC<SegmentedVideoPlayerProps> = ({
       handleBeforeUnload();
     };
   }, [videoId, completedSegments, currentTime]);
-  
-  // Add event listeners
-  useEffect(() => {
-    if (playerRef.current) {
-      playerRef.current.addEventListener('timeupdate', () => {
-        const currentTime = playerRef.current?.currentTime || 0;
-        const duration = playerRef.current?.duration || 0;
-        
-        // Track progress
-        handleProgressUpdate(currentTime, duration);
-        
-        // ... existing timeupdate code ...
-      });
-    }
-  }, [videoId]);
   
   return (
     <div className="flex flex-col md:flex-row h-screen bg-white overflow-hidden">

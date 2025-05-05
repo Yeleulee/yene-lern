@@ -1,6 +1,4 @@
 import React, { useRef, useEffect, useState, forwardRef, useImperativeHandle } from 'react';
-import { useLearning } from '../../context/LearningContext';
-import { useAuth } from '../../context/AuthContext';
 
 // Define a global YouTube Player API interface
 declare global {
@@ -39,14 +37,11 @@ declare global {
 
 interface VideoPlayerProps {
   videoId: string;
-  title?: string;
   onTimeUpdate?: (currentTime: number, duration: number) => void;
   className?: string;
   autoplay?: boolean;
   segments?: { startTime: number; title: string }[];
   showSegmentMarkers?: boolean;
-  onVideoEnd?: () => void;
-  onVideoProgress?: (currentTime: number, duration: number) => void;
 }
 
 export interface VideoPlayerHandle {
@@ -60,14 +55,11 @@ export interface VideoPlayerHandle {
 
 const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(({ 
   videoId, 
-  title,
   onTimeUpdate,
   className = '', 
   autoplay = false,
   segments = [],
-  showSegmentMarkers = false,
-  onVideoEnd,
-  onVideoProgress
+  showSegmentMarkers = false
 }, ref) => {
   const playerContainerRef = useRef<HTMLDivElement>(null);
   const playerInstanceRef = useRef<any>(null);
@@ -77,9 +69,6 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(({
   const [duration, setDuration] = useState(0);
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const playerIdRef = useRef(`youtube-player-${videoId || Math.random().toString(36).substr(2, 9)}`);
-  const progressRef = useRef(0);
-  const lastTrackedProgressRef = useRef(0);
-  const lastProgressUpdateTimeRef = useRef(Date.now());
   
   // Add YouTube API script with improved initialization
   useEffect(() => {
@@ -388,43 +377,6 @@ const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(({
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
   }, [videoId]);
-  
-  // Update this function to track progress correctly
-  const updateProgress = (currentTime: number, duration: number) => {
-    if (!playerContainerRef.current || isNaN(duration) || duration <= 0) return;
-    
-    const progressPercent = Math.floor((currentTime / duration) * 100);
-    
-    // Update progress state
-    progressRef.current = progressPercent;
-    
-    // Don't update too frequently - use a throttle
-    if (
-      progressPercent % 5 === 0 && // Track at 5% intervals
-      progressPercent !== lastTrackedProgressRef.current &&
-      user
-    ) {
-      lastTrackedProgressRef.current = progressPercent;
-      
-      // Calculate watch time since last update
-      const now = Date.now();
-      const timeSinceLastUpdate = (now - lastProgressUpdateTimeRef.current) / 1000; // in seconds
-      lastProgressUpdateTimeRef.current = now;
-      
-      // Track progress in Firebase
-      trackVideoProgress(user.uid, videoId, progressPercent, timeSinceLastUpdate)
-        .then(() => {
-          console.log(`Progress tracked: ${progressPercent}%`);
-          // If this is a saved video, also update the learning context
-          if (isUserVideo && onProgressUpdate) {
-            onProgressUpdate(videoId, progressPercent);
-          }
-        })
-        .catch(error => {
-          console.error('Error tracking progress:', error);
-        });
-    }
-  };
   
   // Use a much simpler, direct approach that's guaranteed to work
   return (

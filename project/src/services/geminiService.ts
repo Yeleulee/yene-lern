@@ -86,28 +86,21 @@ console.log('Environment variables available:', Object.keys(import.meta.env).fil
 
 // Define potential API endpoints to try
 const API_ENDPOINTS = {
-  // United States endpoints
-  usaV1: 'https://generativelanguage.googleapis.com/v1/models/gemini-1.0-pro:generateContent',
-  // Europe endpoints
-  europeV1: 'https://europe-west1-aiplatform.googleapis.com/v1/projects/YOUR_PROJECT/locations/europe-west1/publishers/google/models/gemini-1.0-pro:generateContent',
-  // Asia endpoints
-  asiaV1: 'https://asia-northeast1-aiplatform.googleapis.com/v1/projects/YOUR_PROJECT/locations/asia-northeast1/publishers/google/models/gemini-1.0-pro:generateContent',
-  // Global endpoints
   beta: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent',
+  v1: 'https://generativelanguage.googleapis.com/v1/models/gemini-1.0-pro:generateContent',
   v1beta15: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent',
   v1beta3: 'https://generativelanguage.googleapis.com/v1beta3/models/gemini-pro:generateContent',
+  // Adding more fallback endpoints
   gemini15: 'https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent',
-  gemini10: 'https://generativelanguage.googleapis.com/v1/models/gemini-1.0-pro:generateContent',
-  // Region-agnostic endpoint via proxy (if we had one)
-  proxy: 'https://generativelanguage.googleapis.com/v1/models/gemini-1.0-pro:generateContent'
+  gemini10: 'https://generativelanguage.googleapis.com/v1/models/gemini-1.0-pro:generateContent'
 };
 
 // Try to get API endpoint from localStorage if previously set
-let API_URL = localStorage.getItem('gemini_api_endpoint') || API_ENDPOINTS.usaV1;
+let API_URL = localStorage.getItem('gemini_api_endpoint') || API_ENDPOINTS.v1;
 
 // Make sure the saved endpoint is still valid
 if (!Object.values(API_ENDPOINTS).includes(API_URL)) {
-  API_URL = API_ENDPOINTS.usaV1;
+  API_URL = API_ENDPOINTS.v1;
   localStorage.removeItem('gemini_api_endpoint');
 }
 
@@ -409,15 +402,6 @@ export async function testGeminiConnection(): Promise<{ success: boolean; messag
 
     console.log("Testing connection with endpoint:", API_URL);
 
-    // Check internet connectivity first
-    if (!navigator.onLine) {
-      console.error("No internet connection detected");
-      return {
-        success: false,
-        message: "No internet connection detected. Please check your network and try again."
-      };
-    }
-
     // Use a simple test request that should be fast and reliable
     try {
       const response = await fetch(`${API_URL}?key=${API_KEY}`, {
@@ -447,28 +431,9 @@ export async function testGeminiConnection(): Promise<{ success: boolean; messag
       console.log("API response status:", response.status);
 
       if (!response.ok) {
-        let errorText = "";
-        const errorData = await response.text().catch(() => "No detailed error info");
-        try {
-          // Try to parse it as JSON
-          const errorJson = JSON.parse(errorData);
-          errorText = errorJson.error?.message || errorJson.message || errorData;
-        } catch {
-          // If it's not valid JSON, use the raw text
-          errorText = errorData;
-        }
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Gemini API connection test failed:', response.status, errorData);
         
-        console.error('Gemini API connection test failed:', response.status, errorText);
-        
-        // Special handling for region restrictions - check for specific error messages
-        if (errorText.includes('region') || errorText.includes('location') || errorText.includes('country')) {
-          return {
-            success: false,
-            message: "Region restriction detected. The API key may not be allowed to be used from your current location."
-          };
-        }
-        
-        // Handle common status codes with informative messages
         if (response.status === 403 || response.status === 401) {
           return {
             success: false,
@@ -483,17 +448,9 @@ export async function testGeminiConnection(): Promise<{ success: boolean; messag
           };
         }
         
-        // Check for CORS issues
-        if (response.status === 0 || errorText.includes('CORS')) {
-          return {
-            success: false,
-            message: "CORS error detected. This may be due to cross-origin request restrictions."
-          };
-        }
-        
         return {
           success: false,
-          message: `API error (${response.status}): ${errorText.substring(0, 150)}`
+          message: `API error (${response.status}): ${errorData.error?.message || response.statusText}`
         };
       }
 
@@ -524,15 +481,6 @@ export async function testGeminiConnection(): Promise<{ success: boolean; messag
         return {
           success: false,
           message: "Connection timed out. The API took too long to respond."
-        };
-      }
-      
-      // Handle network errors that might be related to CORS or other connectivity issues
-      if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
-        console.error("Network error - likely CORS or connectivity issue:", error);
-        return {
-          success: false,
-          message: "Network error: Unable to reach the API. This may be due to CORS restrictions or connectivity issues."
         };
       }
       
@@ -578,68 +526,7 @@ export async function checkGeminiCompatibility(): Promise<{
   // Check each endpoint
   const results = [];
   
-  // Try high-priority endpoints first to speed up the process
-  const highPriorityEndpoints = ['usaV1', 'beta', 'gemini10'];
-  let foundWorkingEndpoint = false;
-  
-  // First try high priority endpoints (faster check)
-  for (const name of highPriorityEndpoints) {
-    const endpoint = API_ENDPOINTS[name as keyof typeof API_ENDPOINTS];
-    if (!endpoint) continue;
-    
-    try {
-      console.log(`Testing high priority endpoint: ${name}`);
-      
-      const response = await fetch(`${endpoint}?key=${API_KEY}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                {
-                  text: testPrompt,
-                },
-              ],
-            },
-          ],
-          generationConfig: {
-            temperature: 0.1,
-            maxOutputTokens: 5
-          }
-        }),
-        signal: AbortSignal.timeout(5000) // 5 second timeout per endpoint
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        if (data.candidates && data.candidates[0]?.content?.parts) {
-          console.log(`Endpoint ${name} is working!`);
-          
-          // Update the global API_URL to use this working endpoint
-          API_URL = endpoint;
-          localStorage.setItem('gemini_api_endpoint', endpoint);
-          
-          return {
-            workingEndpoint: name,
-            message: `Found working endpoint: ${name}`
-          };
-        }
-      }
-    } catch (error) {
-      console.error(`Error with endpoint ${name}:`, error);
-      // Continue to the next high priority endpoint
-    }
-  }
-  
-  // If high priority endpoints didn't work, try all remaining endpoints
-  console.log("No high priority endpoint worked, trying all remaining endpoints...");
   for (const [name, endpoint] of Object.entries(API_ENDPOINTS)) {
-    // Skip already checked high priority endpoints
-    if (highPriorityEndpoints.includes(name)) continue;
-    
     try {
       console.log(`Testing endpoint: ${name}`);
       
@@ -673,17 +560,16 @@ export async function checkGeminiCompatibility(): Promise<{
           
           // Update the global API_URL to use this working endpoint
           API_URL = endpoint;
-          localStorage.setItem('gemini_api_endpoint', endpoint);
           
           return {
             workingEndpoint: name,
             message: `Found working endpoint: ${name}`
           };
+        } else {
+          results.push({ name, status: 'invalid-response', code: response.status });
         }
       } else {
-        const errorText = await response.text().catch(() => "No error text");
-        console.log(`Endpoint ${name} returned status ${response.status}: ${errorText}`);
-        results.push({ name, status: 'error', code: response.status, text: errorText });
+        results.push({ name, status: 'error', code: response.status });
       }
     } catch (error) {
       console.error(`Error with endpoint ${name}:`, error);
@@ -698,27 +584,9 @@ export async function checkGeminiCompatibility(): Promise<{
   // If we get here, none of the endpoints worked
   console.error("No working endpoints found:", results);
   
-  // Analyze if this is a region restriction issue
-  const regionErrors = results.filter(r => 
-    r.text?.includes('region') || 
-    r.text?.includes('location') || 
-    r.text?.includes('country') ||
-    r.error?.includes('region') ||
-    r.error?.includes('location') ||
-    r.error?.includes('country')
-  );
-  
-  if (regionErrors.length > 0) {
-    return {
-      workingEndpoint: null,
-      error: "Region restrictions detected",
-      message: "The API key appears to have region restrictions. The service may not be available in your current location."
-    };
-  }
-  
   return {
     workingEndpoint: null,
     error: "No compatible endpoints found",
-    message: "Could not find a working Gemini API endpoint. This may be due to API key restrictions or service availability."
+    message: "Could not find a working Gemini API endpoint. This may be due to API key restrictions, region limitations, or service availability."
   };
 }

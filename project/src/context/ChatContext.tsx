@@ -21,7 +21,6 @@ interface ChatContextType {
   checkConnection: () => Promise<boolean>;
   runCompatibilityCheck: () => Promise<{ success: boolean; message: string }>;
   setApiKey: (key: string) => boolean;
-  resetAndReconnect: () => Promise<boolean>;
 }
 
 // Create context
@@ -350,42 +349,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [checkConnection]);
 
-  // Reset all API settings and try to reconnect
-  const resetAndReconnect = useCallback(async (): Promise<boolean> => {
-    try {
-      // Clear any stored API configurations
-      localStorage.removeItem('gemini_api_endpoint');
-      // Don't remove the API key to preserve user-set keys
-      
-      // Refresh connection status
-      setConnectionStatus('checking');
-      
-      // First try compatibility check to find best endpoint
-      const compatResult = await checkGeminiCompatibility();
-      if (compatResult.workingEndpoint) {
-        setConnectionStatus('connected');
-        setConnectionChecked(true);
-        return true;
-      }
-      
-      // If that fails, try simple connection check
-      const connectionResult = await testGeminiConnection();
-      if (connectionResult.success) {
-        setConnectionStatus('connected');
-        setConnectionChecked(true);
-        return true;
-      }
-      
-      // If nothing works, update status to disconnected
-      setConnectionStatus('disconnected');
-      return false;
-    } catch (error) {
-      console.error('Error in resetAndReconnect:', error);
-      setConnectionStatus('disconnected');
-      return false;
-    }
-  }, []);
-
   return (
     <ChatContext.Provider
       value={{
@@ -397,7 +360,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         checkConnection,
         runCompatibilityCheck,
         setApiKey,
-        resetAndReconnect,
       }}
     >
       {children}

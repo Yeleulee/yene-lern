@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Sparkles, Loader, User, Eraser, BookOpen, AlertCircle, KeyRound, RefreshCw } from 'lucide-react';
+import { Send, Sparkles, Loader, User, Eraser, BookOpen, AlertCircle, KeyRound } from 'lucide-react';
 import { useChat } from '../../context/ChatContext';
 import Button from './Button';
 import ApiKeyForm from './ApiKeyForm';
@@ -11,7 +11,7 @@ interface LearningChatInterfaceProps {
 const LearningChatInterface: React.FC<LearningChatInterfaceProps> = ({ 
   title = "AI Learning Assistant"
 }) => {
-  const { messages, isLoading, sendMessage, clearChat, connectionStatus, checkConnection, runCompatibilityCheck, resetAndReconnect } = useChat();
+  const { messages, isLoading, sendMessage, clearChat, connectionStatus, checkConnection, runCompatibilityCheck } = useChat();
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -97,29 +97,6 @@ const LearningChatInterface: React.FC<LearningChatInterfaceProps> = ({
     }, 500);
   };
 
-  // Add new function to force reconnection with the default key
-  const forceReconnectWithDefaultKey = async () => {
-    setCompatibilityStatus("Resetting connection and trying to reconnect...");
-    setIsCheckingCompatibility(true);
-    
-    try {
-      // Use our new reset function
-      const result = await resetAndReconnect();
-      
-      if (result) {
-        setCompatibilityStatus("Connection successful! Refreshing...");
-        setTimeout(() => window.location.reload(), 1000);
-      } else {
-        setCompatibilityStatus("Could not establish connection. Please check your internet and try again.");
-      }
-    } catch (error) {
-      console.error("Error during reconnection:", error);
-      setCompatibilityStatus("Error during reconnection attempt.");
-    } finally {
-      setIsCheckingCompatibility(false);
-    }
-  };
-
   // Example prompt suggestions for learning
   const examplePrompts = [
     "How can I improve my learning efficiency?",
@@ -154,22 +131,19 @@ const LearningChatInterface: React.FC<LearningChatInterfaceProps> = ({
             {/* First try automatic reconnection */}
             <div className="w-full max-w-md mb-6">
               <Button 
-                className="w-full mb-4 flex items-center justify-center gap-2"
-                variant="primary"
-                disabled={isCheckingCompatibility}
-                onClick={forceReconnectWithDefaultKey}
+                className="w-full mb-4"
+                onClick={async () => {
+                  setCompatibilityStatus("Attempting to reconnect with the default API key...");
+                  const result = await checkConnection();
+                  if (result) {
+                    setCompatibilityStatus("Connection successful! Refreshing...");
+                    setTimeout(() => window.location.reload(), 1000);
+                  } else {
+                    setCompatibilityStatus("Could not connect with the default API key. Try running compatibility check.");
+                  }
+                }}
               >
-                {isCheckingCompatibility ? (
-                  <>
-                    <RefreshCw className="animate-spin" size={18} />
-                    Reconnecting...
-                  </>
-                ) : (
-                  <>
-                    <RefreshCw size={18} />
-                    Reset Connection & Try Again
-                  </>
-                )}
+                Reconnect with Default API Key
               </Button>
               
               <div className="flex gap-2 w-full">
