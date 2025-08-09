@@ -188,40 +188,30 @@ export function getCurrentUser(): User | null {
 
 // Replace demo user videos with real Firestore integration
 export async function getUserVideos(userId: string): Promise<UserVideo[]> {
-  // This would be replaced with actual Firestore calls
-  console.log('Get videos for user:', userId);
-  
-  return [
-    {
-      id: 'W6NZfCO5SIk',
-      title: 'JavaScript Tutorial for Beginners',
-      description: 'Learn JavaScript in 1 Hour',
-      thumbnailUrl: 'https://i.ytimg.com/vi/W6NZfCO5SIk/mqdefault.jpg',
-      channelTitle: 'Programming with Mosh',
-      publishedAt: '2021-05-15',
-      status: 'completed',
-      progress: 3600,
-    },
-    {
-      id: 'DHvZLI7Db8E',
-      title: 'React Hooks Explained',
-      description: 'Learn all about React Hooks and how to use them in your applications',
-      thumbnailUrl: 'https://i.ytimg.com/vi/dpw9EHDh2bM/mqdefault.jpg',
-      channelTitle: 'Web Dev Simplified',
-      publishedAt: '2021-03-10',
-      status: 'in-progress',
-      progress: 1250,
-    },
-    {
-      id: 'FazgJVnrVuI',
-      title: 'HTML & CSS Full Course',
-      description: 'Learn HTML and CSS from scratch',
-      thumbnailUrl: 'https://i.ytimg.com/vi/G3e-cpL7ofc/mqdefault.jpg',
-      channelTitle: 'SuperSimpleDev',
-      publishedAt: '2022-01-12',
-      status: 'to-learn',
-    }
-  ];
+  try {
+    const videosCol = collection(db, `users/${userId}/videos`);
+    const snapshot = await getDocs(videosCol);
+    const results: UserVideo[] = [];
+    snapshot.forEach((docSnap) => {
+      const data = docSnap.data() as any;
+      // Normalize to UserVideo shape
+      results.push({
+        id: data.id || docSnap.id,
+        title: data.title || '',
+        description: data.description || '',
+        thumbnailUrl: data.thumbnailUrl || '',
+        channelTitle: data.channelTitle || '',
+        publishedAt: data.publishedAt || '',
+        status: data.status || 'to-learn',
+        progress: typeof data.progress === 'number' ? data.progress : undefined,
+        lastWatched: data.lastWatched ? (data.lastWatched instanceof Timestamp ? data.lastWatched.toDate().toISOString() : data.lastWatched) : undefined,
+      });
+    });
+    return results;
+  } catch (error) {
+    console.error('Failed to fetch user videos from Firestore:', error);
+    return [];
+  }
 }
 
 export async function updateVideoStatus(
@@ -331,17 +321,17 @@ export async function saveVideo(userId: string, video: UserVideo): Promise<void>
           savedVideos: increment(1),
           lastActive: serverTimestamp()
         });
-      } else {
-        // Create new user stats document
-        await setDoc(userStatsRef, {
-          savedVideos: 1,
-          completedVideos: 0,
-          learningStreak: 0,
-          totalLearningTime: 0,
-          lastActive: serverTimestamp(),
-          createdAt: serverTimestamp()
-        });
-      }
+        } else {
+          // Create new user stats document
+          await setDoc(userStatsRef, {
+            savedVideos: 1,
+            completedVideos: 0,
+            learningStreak: 0,
+            totalLearningTime: 0,
+            lastActive: serverTimestamp(),
+            createdAt: serverTimestamp()
+          });
+        }
     }
     
     console.log('Video saved successfully');

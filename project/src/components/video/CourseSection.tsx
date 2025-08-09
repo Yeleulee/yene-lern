@@ -220,25 +220,25 @@ const CourseSection: React.FC<CourseSectionProps> = ({ courseId, videoId, video 
     }
   }, [currentTime, currentSection]);
   
-  // Load last watched position
+  // Load last watched position using VideoPlayer handle
   useEffect(() => {
-    if (currentSection) {
-      const savedPositions = JSON.parse(localStorage.getItem('video_positions') || '{}');
-      const lastPosition = savedPositions[currentSection.videoId];
-      if (lastPosition && playerRef.current && playerRef.current.contentWindow) {
-        // Seek to last position after a delay to ensure player is ready
-        setTimeout(() => {
-          playerRef.current?.contentWindow?.postMessage(
-            JSON.stringify({
-              event: 'command',
-              func: 'seekTo',
-              args: [lastPosition, true]
-            }), 
-            '*'
-          );
-        }, 2000);
+    if (!currentSection) return;
+    const savedPositions = JSON.parse(localStorage.getItem('video_positions') || '{}');
+    const lastPosition = savedPositions[currentSection.videoId];
+    if (typeof lastPosition !== 'number' || lastPosition <= 0) return;
+
+    // Try seeking a few times until player is ready
+    let attempts = 0;
+    const maxAttempts = 5;
+    const interval = setInterval(() => {
+      attempts += 1;
+      const ok = playerRef.current?.seekTo(lastPosition);
+      if (ok || attempts >= maxAttempts) {
+        clearInterval(interval);
       }
-    }
+    }, 600);
+
+    return () => clearInterval(interval);
   }, [currentSection]);
   
   // Parse timestamps to create segments

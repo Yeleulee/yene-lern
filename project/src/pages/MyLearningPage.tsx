@@ -14,7 +14,7 @@ const MyLearningPage: React.FC = () => {
   const { userVideos, updateStatus, removeVideo } = useLearning();
   const [filter, setFilter] = useState<'all' | 'to-learn' | 'in-progress' | 'completed'>('all');
   const [showChat, setShowChat] = useState(false);
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+  const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth < 1024 : true);
 
   // Handle responsive design
   useEffect(() => {
@@ -64,7 +64,7 @@ const MyLearningPage: React.FC = () => {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="mb-8 flex justify-between items-center">
+      <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-3xl font-bold mb-2">My Learning</h1>
           <p className="text-gray-600">Track and manage your learning journey</p>
@@ -166,7 +166,7 @@ const MyLearningPage: React.FC = () => {
                   </Link>
                 </div>
               ) : (
-                <div className="grid md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                   {filteredVideos.map((video) => (
                     <div key={video.id} className="flex flex-col h-full">
                     <VideoCard
@@ -187,7 +187,7 @@ const MyLearningPage: React.FC = () => {
       {!isMobile && (
         <div className="flex flex-row gap-8">
           {/* Learning Content Section */}
-          <div className={`${showChat ? 'w-1/2' : 'w-full'}`}>
+          <div className={`w-full ${showChat ? 'lg:w-1/2' : ''}`}>
             {user && (
               <>
                 <LearningAssistant 
@@ -257,7 +257,7 @@ const MyLearningPage: React.FC = () => {
                 </Link>
               </div>
             ) : (
-              <div className="grid md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                 {filteredVideos.map((video) => (
                   <div key={video.id} className="flex flex-col h-full">
                   <VideoCard

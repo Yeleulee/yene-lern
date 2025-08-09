@@ -55,19 +55,19 @@ const HomePage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Hero Section */}
-      <section className="relative bg-gradient-to-br from-blue-600 to-purple-700 py-20 md:py-32 overflow-hidden">
+      <section className="relative bg-gradient-to-br from-blue-600 to-purple-700 py-16 md:py-28 overflow-hidden">
         <div className="absolute inset-0 bg-grid-white/10" />
         <div className="container mx-auto px-4 relative">
           <div className="max-w-4xl mx-auto text-center">
-            <h1 className="text-4xl md:text-6xl font-bold text-white mb-6 animate-fade-in">
+            <h1 className="text-3xl md:text-6xl font-bold text-white mb-6 animate-fade-in">
               Learn Faster with YouTube <span className="text-yellow-300">+</span> AI
             </h1>
-            <p className="text-xl md:text-2xl text-blue-100 mb-8 animate-fade-in">
+            <p className="text-lg md:text-2xl text-blue-100 mb-8 animate-fade-in">
               Transform your learning experience with AI-powered video summaries,
               smart progress tracking, and personalized learning paths.
             </p>
             
-            <div className="max-w-3xl mx-auto mb-8 animate-slide-up">
+              <div className="max-w-3xl mx-auto mb-8 animate-slide-up">
               <SearchBar onSearch={handleSearch} isLoading={isSearching} />
             </div>
             
@@ -257,14 +257,14 @@ const HomePage: React.FC = () => {
             Join thousands of learners who are already using Yene Learn to
             accelerate their learning journey.
           </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
             <Link to="/signup">
-              <Button className="w-full sm:w-auto bg-white text-primary-700 hover:bg-blue-50">
+                  <Button className="w-full sm:w-auto bg-white text-primary-700 hover:bg-blue-50">
                 Get Started Free
               </Button>
             </Link>
             <Link to="/explore">
-              <Button variant="outline" className="w-full sm:w-auto bg-white/20 border-white/40 text-white hover:bg-white/30">
+                  <Button variant="outline" className="w-full sm:w-auto bg-white/20 border-white/40 text-white hover:bg-white/30">
                 Explore Content
               </Button>
             </Link>

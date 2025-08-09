@@ -153,19 +153,17 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, onSave, onUpdateStatus, on
 
   return (
     <div 
-      className="card group hover:transform hover:scale-[1.01] transition-all shadow-sm hover:shadow-md border border-gray-200 rounded-lg overflow-hidden h-full flex flex-col"
+      className="card group hover:transform hover:scale-[1.01] transition-all shadow-sm hover:shadow-lg overflow-hidden h-full flex flex-col"
       tabIndex={0}
       aria-label={`${video.title} ${isPartOfCourse ? 'course' : hasSegments ? 'segmented course' : 'course'}`}
     >
-      <div className="relative aspect-video overflow-hidden flex items-center justify-center bg-black w-full">
+      <div className="relative aspect-video overflow-hidden bg-black w-full">
         <img
           src={video.thumbnailUrl}
           alt=""
-          className="max-w-full max-h-full object-contain transition-transform group-hover:scale-105"
-          style={{ width: 'auto', height: 'auto', maxHeight: '100%' }}
+          className="absolute inset-0 w-full h-full object-cover transition-transform group-hover:scale-105"
           loading="lazy"
           onError={(e) => {
-            // Fallback for failed thumbnails
             e.currentTarget.src = 'https://via.placeholder.com/480x360?text=Video+Thumbnail';
           }}
         />
@@ -240,7 +238,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, onSave, onUpdateStatus, on
 
       <div className="flex flex-col p-4 flex-grow">
         <div className="flex items-start gap-2 mb-1">
-          <h3 className="font-medium text-gray-900 text-lg leading-tight line-clamp-2">
+          <h3 className="font-semibold text-gray-900 text-lg leading-tight line-clamp-2">
             <Link to={getVideoLink()} className="hover:text-primary-600 transition-colors">
               {video.title}
             </Link>

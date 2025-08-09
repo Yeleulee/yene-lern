@@ -351,8 +351,8 @@ const VideoPage: React.FC = () => {
     );
   }
 
-  // For course videos, display the course section component with the courseId
-  if (isPartOfCourse) {
+  // For course videos OR any video with detected segments, display the segmented player
+  if (isPartOfCourse || (videoSegments && videoSegments.length > 0)) {
     return <SegmentedVideoPlayer 
       videoId={videoId}
       title={video.title}
@@ -394,11 +394,10 @@ const VideoPage: React.FC = () => {
         </div>
 
           <div className="space-y-6 lg:w-1/3">
-          {isVideoSaved && (
+          {isVideoSaved && userVideo && (
             <ProgressTracker 
-              videoId={videoId}
-              onStatusChange={handleUpdateStatus}
-              initialStatus={userVideo?.status}
+              video={userVideo}
+              onUpdateStatus={handleUpdateStatus}
             />
           )}
           

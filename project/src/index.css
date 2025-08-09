@@ -2,6 +2,59 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Global responsive tweaks */
+html, body, #root {
+  height: 100%;
+}
+
+/* Smoother font rendering */
+body {
+  @apply bg-gray-50 text-gray-900 antialiased;
+}
+
+/* Card base */
+.card {
+  @apply bg-white rounded-xl border border-gray-200 shadow-sm;
+}
+
+/* Status pills */
+.status-pill {
+  @apply text-xs px-2 py-1 rounded-full border;
+}
+.status-to-learn { @apply bg-gray-50 text-gray-700 border-gray-200; }
+.status-in-progress { @apply bg-blue-50 text-blue-700 border-blue-200; }
+.status-completed { @apply bg-green-50 text-green-700 border-green-200; }
+
+/* Chat containers (shared styles) */
+.chat-container { @apply card overflow-hidden; }
+.chat-header { @apply flex items-center justify-between p-3 border-b border-gray-200 bg-white; }
+.chat-messages { @apply p-3; }
+.chat-input-container { @apply border-t border-gray-200 bg-white p-3; }
+.chat-input { @apply w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none; }
+
+/* Main content spacing */
+.main-content { @apply pt-3 md:pt-4; }
+
+/* Page transitions */
+.page-transition-wrapper { @apply transition-opacity duration-200; }
+.no-fouc { opacity: 0; }
+.fouc-ready { opacity: 1; }
+
+/* Video player container */
+.video-player-container { @apply relative; }
+
+/* Utilities for clamping */
+.line-clamp-1 { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+.line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* Buttons */
+.btn { @apply inline-flex items-center justify-center rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed; }
+.btn-primary { @apply bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-600; }
+.btn-secondary { @apply bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-indigo-600; }
+.btn-outline { @apply border border-gray-300 bg-white text-gray-800 hover:bg-gray-50 focus:ring-blue-600; }
+.btn-ghost { @apply text-gray-700 hover:bg-gray-100; }
+.btn-success { @apply bg-green-600 text-white hover:bg-green-700 focus:ring-green-600; }
+
 @layer base {
   :root {
     --color-primary: 59 130 246;

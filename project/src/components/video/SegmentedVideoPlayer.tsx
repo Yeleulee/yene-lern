@@ -132,6 +132,23 @@ const SegmentedVideoPlayer: React.FC<SegmentedVideoPlayerProps> = ({
       }
     }
   };
+
+  // Resume playback from saved position when ready
+  useEffect(() => {
+    if (!videoId) return;
+    const positions = JSON.parse(localStorage.getItem('video_positions') || '{}');
+    const last = positions[videoId];
+    if (typeof last !== 'number' || last <= 0) return;
+
+    let tries = 0;
+    const t = setInterval(() => {
+      tries += 1;
+      const ok = playerRef.current?.seekTo(last);
+      if (ok || tries >= 5) clearInterval(t);
+    }, 600);
+
+    return () => clearInterval(t);
+  }, [videoId]);
   
   // Mark a segment as complete
   const markSegmentComplete = (segmentId: string) => {
@@ -258,7 +275,9 @@ const SegmentedVideoPlayer: React.FC<SegmentedVideoPlayerProps> = ({
       // Save the current segment completion state and progress
       try {
         localStorage.setItem(`segment_completions_${videoId}`, JSON.stringify(completedSegments));
-        localStorage.setItem(`video_last_position_${videoId}`, currentTime.toString());
+        const positions = JSON.parse(localStorage.getItem('video_positions') || '{}');
+        positions[videoId] = currentTime;
+        localStorage.setItem('video_positions', JSON.stringify(positions));
       } catch (e) {
         console.error('Error saving segment completions:', e);
       }

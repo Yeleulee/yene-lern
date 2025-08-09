@@ -51,12 +51,18 @@ export function LearningProvider({ children }: { children: ReactNode }) {
         status: 'to-learn',
       };
 
+      // Optimistic UI update
+      const videoExists = userVideos.some(v => v.id === video.id);
+      if (!videoExists) setUserVideos((prev) => [...prev, userVideo]);
+
       await saveVideo(user.uid, userVideo);
       
-      // Check if the video is already in the state to prevent duplicates
-      const videoExists = userVideos.some(v => v.id === video.id);
+      // Ensure state reflects latest server data (avoid duplicates/races)
       if (!videoExists) {
-        setUserVideos((prev) => [...prev, userVideo]);
+        // no-op, already added optimistically
+      } else {
+        // If it existed, update its status only
+        setUserVideos((prev) => prev.map(v => v.id === video.id ? { ...v, status: 'to-learn' } : v));
       }
       
       return Promise.resolve(); // Ensure we always return a resolved promise

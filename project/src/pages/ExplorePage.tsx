@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import SearchBar from '../components/search/SearchBar';
 import VideoCard from '../components/video/VideoCard';
 import { searchVideos } from '../services/youtubeService';
@@ -38,9 +39,14 @@ const courseLikes = {
 const ExplorePage: React.FC = () => {
   const { user } = useAuth();
   const { userVideos, addVideo } = useLearning();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<Video[]>([]);
+  const [durationFilter, setDurationFilter] = useState<'all' | 'short' | 'medium' | 'long'>('all');
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<'relevance' | 'date' | 'views' | 'duration'>('relevance');
   const [saveError, setSaveError] = useState<string | null>(null);
   const [trendingResults, setTrendingResults] = useState<Video[]>([]);
   const [isTrendingLoading, setIsTrendingLoading] = useState(false);
@@ -97,6 +103,49 @@ const ExplorePage: React.FC = () => {
     }
   };
 
+  const convertISODurationToSeconds = (isoDuration: string) => {
+    const hours = isoDuration.match(/(\d+)H/);
+    const minutes = isoDuration.match(/(\d+)M/);
+    const seconds = isoDuration.match(/(\d+)S/);
+    let totalSeconds = 0;
+    if (hours) totalSeconds += parseInt(hours[1]) * 3600;
+    if (minutes) totalSeconds += parseInt(minutes[1]) * 60;
+    if (seconds) totalSeconds += parseInt(seconds[1]);
+    return totalSeconds;
+  };
+
+  const filteredAndSortedResults = useMemo(() => {
+    let list = [...searchResults];
+
+    // Category filter (basic: title/desc contains category name)
+    if (selectedCategory) {
+      const q = selectedCategory.toLowerCase();
+      list = list.filter(v => (v.title + ' ' + v.description).toLowerCase().includes(q));
+    }
+
+    // Duration filter
+    if (durationFilter !== 'all') {
+      list = list.filter(v => {
+        if (!('duration' in v) || !(v as any).duration) return true; // keep if unknown
+        const secs = convertISODurationToSeconds((v as any).duration);
+        if (durationFilter === 'short') return secs < 20 * 60;
+        if (durationFilter === 'medium') return secs >= 20 * 60 && secs <= 120 * 60;
+        if (durationFilter === 'long') return secs > 120 * 60;
+        return true;
+      });
+    }
+
+    // Sorting
+    if (sortBy === 'date') {
+      list.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
+    } else if (sortBy === 'views') {
+      list.sort((a: any, b: any) => (parseInt(b.viewCount || '0') || 0) - (parseInt(a.viewCount || '0') || 0));
+    } else if (sortBy === 'duration') {
+      list.sort((a: any, b: any) => convertISODurationToSeconds(b.duration || 'PT0S') - convertISODurationToSeconds(a.duration || 'PT0S'));
+    }
+    return list;
+  }, [searchResults, selectedCategory, durationFilter, sortBy]);
+
   const handleTopicClick = (topic: string) => {
     handleSearch(topic);
   };
@@ -126,7 +175,12 @@ const ExplorePage: React.FC = () => {
     setSaveError(null);
     try {
       if (!user) {
-        console.log('User not logged in, redirecting to login page');
+        // Redirect to login and come back to this page after successful auth
+        // Store pending save request so we can complete it after login
+        try {
+          sessionStorage.setItem('pending_save_video', JSON.stringify(video));
+        } catch {}
+        navigate('/login', { state: { from: location } });
         return;
       }
       
@@ -137,6 +191,25 @@ const ExplorePage: React.FC = () => {
       setSaveError('Failed to save video. Please try again.');
     }
   };
+
+  // If we came back from login with a pending save, complete it automatically
+  useEffect(() => {
+    if (!user) return;
+    try {
+      const pending = sessionStorage.getItem('pending_save_video');
+      if (pending) {
+        const pendingVideo: Video = JSON.parse(pending);
+        // Avoid duplicates if it was already saved
+        if (!userVideos.some(v => v.id === pendingVideo.id)) {
+          addVideo(pendingVideo).finally(() => {
+            sessionStorage.removeItem('pending_save_video');
+          });
+        } else {
+          sessionStorage.removeItem('pending_save_video');
+        }
+      }
+    } catch {}
+  }, [user, userVideos, addVideo]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-gray-50">
@@ -174,6 +247,48 @@ const ExplorePage: React.FC = () => {
       </div>
       
       <div className="container mx-auto px-4 py-12">
+        {/* Controls Row */}
+        <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm text-gray-600">Filter by:</span>
+            <select
+              value={durationFilter}
+              onChange={(e) => setDurationFilter(e.target.value as any)}
+              className="text-sm border border-gray-300 rounded-lg px-2 py-1 bg-white"
+              aria-label="Filter by duration"
+            >
+              <option value="all">All durations</option>
+              <option value="short">Short (&lt; 20 min)</option>
+              <option value="medium">Medium (20–120 min)</option>
+              <option value="long">Long (&gt; 120 min)</option>
+            </select>
+            <select
+              value={selectedCategory || ''}
+              onChange={(e) => setSelectedCategory(e.target.value || null)}
+              className="text-sm border border-gray-300 rounded-lg px-2 py-1 bg-white"
+              aria-label="Filter by category"
+            >
+              <option value="">All categories</option>
+              {featuredCategories.map(c => (
+                <option key={c.name} value={c.name}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-600">Sort by:</span>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as any)}
+              className="text-sm border border-gray-300 rounded-lg px-2 py-1 bg-white"
+              aria-label="Sort results"
+            >
+              <option value="relevance">Relevance</option>
+              <option value="date">Newest</option>
+              <option value="views">Most viewed</option>
+              <option value="duration">Longest</option>
+            </select>
+          </div>
+        </div>
         {saveError && (
           <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded mb-6 animate-fade-in">
             <div className="flex items-center">
@@ -299,11 +414,11 @@ const ExplorePage: React.FC = () => {
 
         {/* Search Results */}
         <div id="search-results">
-      {isSearching ? (
+        {isSearching ? (
             <div className="mt-8">
               <div className="h-6 bg-gray-300 rounded w-1/3 mb-6"></div>
               <div className="flex justify-center">
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 max-w-5xl mx-auto">
           {Array.from({ length: 6 }).map((_, i) => (
                     <div key={i} className="card animate-pulse w-full">
               <div className="aspect-video bg-gray-300 rounded-lg mb-3"></div>
@@ -319,15 +434,15 @@ const ExplorePage: React.FC = () => {
                 </div>
               </div>
         </div>
-      ) : searchResults.length > 0 ? (
+      ) : filteredAndSortedResults.length > 0 ? (
             <div className="mt-8 animate-fade-in">
               <h2 className="text-2xl font-bold mb-6 text-gray-800 flex items-center">
                 <GraduationCap className="mr-2 text-blue-600" />
-                Courses for "{searchQuery}"
+                Results for "{searchQuery}"
           </h2>
               <div className="flex justify-center">
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
-            {searchResults.map((video) => (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 max-w-5xl mx-auto">
+            {filteredAndSortedResults.map((video) => (
                     <div key={video.id} className="flex flex-col h-full bg-white rounded-lg overflow-hidden shadow-sm">
               <VideoCard
                 video={video}

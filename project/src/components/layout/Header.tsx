@@ -87,7 +87,7 @@ const Header: React.FC = () => {
 
   // Regular header for other pages
   return (
-    <header className={`sticky top-0 z-10 transition-all duration-300 ${
+    <header className={`sticky top-0 z-20 transition-all duration-300 ${
       isScrolled 
         ? 'bg-white shadow-md py-2' 
         : 'bg-blue-600 py-3 text-white'
