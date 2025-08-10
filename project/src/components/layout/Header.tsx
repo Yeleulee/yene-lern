@@ -85,125 +85,83 @@ const Header: React.FC = () => {
     );
   }
 
-  // Regular header for other pages
+  // Clean light header - ORB AI inspired
   return (
-    <header className={`sticky top-0 z-20 transition-all duration-300 ${
-      isScrolled 
-        ? 'bg-white shadow-md py-2' 
-        : 'bg-blue-600 py-3 text-white'
-    }`}>
+    <header className="sticky top-0 z-20 bg-white border-b border-gray-100 py-4 transition-all duration-300">
       <div className="container mx-auto px-4 flex items-center justify-between">
-        {/* Logo */}
-        <Link to="/" className="flex items-center space-x-2 group">
-          <div className={`w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-md transform group-hover:scale-105 transition-transform`}>
-            <span className="text-white font-bold text-lg">Y</span>
+        {/* Clean Logo */}
+        <Link to="/" className="flex items-center space-x-3 group">
+          <div className="w-10 h-10 bg-black rounded-lg flex items-center justify-center shadow-sm transform group-hover:scale-105 transition-all duration-300">
+            <div className="text-white text-lg font-bold transform rotate-12">⧫</div>
           </div>
-          <h1 className={`text-xl font-bold tracking-tight ${
-            isScrolled 
-              ? 'bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent' 
-              : 'text-white'
-          }`}>
-            Yene <span className="font-normal">Learn</span>
-          </h1>
+          <div className="text-2xl font-bold text-black tracking-tight" style={{ fontFamily: 'Dancing Script, cursive' }}>
+            Yene Learn
+          </div>
         </Link>
 
-        {/* Desktop Navigation */}
-        <nav className="hidden md:flex items-center space-x-2">
+        {/* Clean Navigation */}
+        <nav className="hidden md:flex items-center space-x-8">
           <Link 
             to="/" 
-            className={`px-4 py-2 rounded-full flex items-center space-x-1 transition-colors ${
-              isActive('/') 
-                ? (isScrolled ? 'bg-blue-100 text-blue-700' : 'bg-white/20 text-white') 
-                : (isScrolled ? 'text-gray-700 hover:bg-gray-100' : 'text-white hover:bg-white/10')
-            }`}
+            className="text-gray-700 hover:text-black transition-colors font-medium"
           >
-            <Home size={18} />
-            <span>Home</span>
+            Home
           </Link>
           <Link 
             to="/explore" 
-            className={`px-4 py-2 rounded-full flex items-center space-x-1 transition-colors ${
-              isActive('/explore') 
-                ? (isScrolled ? 'bg-blue-100 text-blue-700' : 'bg-white/20 text-white') 
-                : (isScrolled ? 'text-gray-700 hover:bg-gray-100' : 'text-white hover:bg-white/10')
-            }`}
+            className="text-gray-700 hover:text-black transition-colors font-medium"
           >
-            <CompassIcon size={18} />
-            <span>Explore</span>
+            Explore
           </Link>
           <Link 
             to="/my-learning" 
-            className={`px-4 py-2 rounded-full flex items-center space-x-1 transition-colors ${
-              isActive('/my-learning') 
-                ? (isScrolled ? 'bg-blue-100 text-blue-700' : 'bg-white/20 text-white') 
-                : (isScrolled ? 'text-gray-700 hover:bg-gray-100' : 'text-white hover:bg-white/10')
-            }`}
+            className="text-gray-700 hover:text-black transition-colors font-medium"
           >
-            <BookOpen size={18} />
-            <span>My Learning</span>
+            My Learning
           </Link>
         </nav>
 
-        {/* Desktop Auth */}
-        <div className="hidden md:flex items-center space-x-3">
-          {/* Notification icon */}
-          <button className={`p-2 rounded-full ${
-            isScrolled ? 'hover:bg-gray-100 text-gray-700' : 'hover:bg-white/10 text-white'
-          }`}>
-            <Bell size={20} />
-          </button>
-          
+                {/* Clean Auth Section */}
+        <div className="hidden md:flex items-center">
           {user ? (
-            <div className="flex items-center">
+            <div className="flex items-center space-x-3">
               <div className="relative group">
-                <button className="flex items-center space-x-2 p-1.5 rounded-full border-2 border-transparent hover:border-gray-200 transition-colors">
-                  <div className="h-8 w-8 rounded-full bg-gradient-to-br from-red-400 to-red-600 flex items-center justify-center text-white font-bold shadow-sm">
+                <button className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-50 transition-all duration-300">
+                  <div className="h-8 w-8 rounded-full bg-gray-800 flex items-center justify-center text-white font-medium text-sm">
                     {user.displayName?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || 'U'}
                   </div>
-                  <span className={isScrolled ? 'text-gray-800' : 'text-white'}>
+                  <span className="text-gray-700 font-medium">
                     {user.displayName?.split(' ')[0] || user.email?.split('@')[0]}
                   </span>
                 </button>
                 
-                {/* Dropdown menu */}
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-1 z-10 hidden group-hover:block border border-gray-100">
-                  <Link to="/profile" className="block px-4 py-2 text-gray-700 hover:bg-gray-100 flex items-center">
-                    <User size={16} className="mr-2" />
-                    Profile
+                {/* Modern Dropdown menu */}
+                <div className="absolute right-0 mt-3 w-52 bg-white/95 backdrop-blur-md rounded-2xl shadow-xl py-2 z-10 hidden group-hover:block border border-gray-100">
+                  <Link to="/profile" className="block px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-700 flex items-center transition-colors rounded-lg mx-2">
+                    <User size={16} className="mr-3" />
+                    Profile Settings
                   </Link>
-                  <Link to="/my-learning" className="block px-4 py-2 text-gray-700 hover:bg-gray-100 flex items-center">
-                    <GraduationCap size={16} className="mr-2" />
-                    My Courses
+                  <Link to="/my-learning" className="block px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-700 flex items-center transition-colors rounded-lg mx-2">
+                    <GraduationCap size={16} className="mr-3" />
+                    My Learning
                   </Link>
-                  <hr className="my-1 border-gray-100" />
+                  <hr className="my-2 border-gray-100" />
                   <button
                     onClick={logout}
-                    className="block w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-100 flex items-center"
+                    className="block w-full text-left px-4 py-3 text-gray-700 hover:bg-red-50 hover:text-red-600 flex items-center transition-colors rounded-lg mx-2"
                   >
-                    <LogOut size={16} className="mr-2" />
-                    Logout
+                    <LogOut size={16} className="mr-3" />
+                    Sign Out
                   </button>
                 </div>
               </div>
             </div>
           ) : (
-            <div className="flex items-center space-x-2">
-              <Link to="/login">
-                <Button 
-                  variant={isScrolled ? "outline" : "ghost"} 
-                  className={!isScrolled ? "border-white/30 text-white hover:bg-white/10" : ""}
-                >
-                  Login
-                </Button>
-              </Link>
-              <Link to="/signup">
-                <Button 
-                  className={!isScrolled ? "bg-white text-blue-600 hover:bg-blue-50" : ""}
-                >
-                  Sign Up
-                </Button>
-              </Link>
-            </div>
+            <Link to="/signup">
+              <Button className="bg-black text-white hover:bg-gray-800 px-6 py-2 rounded-xl font-medium transition-all duration-300">
+                Get Started
+              </Button>
+            </Link>
           )}
         </div>
 

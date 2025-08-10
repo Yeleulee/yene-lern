@@ -75,38 +75,26 @@ const MyLearningPage: React.FC = () => {
 
   // On mobile, show either chat or content
   const showMobileChat = isMobile && showChat;
-  const showMobileContent = !isMobile || (isMobile && !showChat);
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="card p-4">
-          <div className="text-xs text-gray-500">Total Saved</div>
-          <div className="text-2xl font-semibold">{userVideos.length}</div>
+    <div className="min-h-screen bg-white -mt-20 pt-20">
+      {/* Clean Header */}
+      <div className="bg-white py-16 mb-8">
+        <div className="container mx-auto px-4">
+          <div className="max-w-4xl mx-auto text-center">
+            <div className="inline-flex items-center gap-2 bg-gray-100 text-gray-600 px-4 py-2 rounded-full text-sm font-medium mb-8 animate-fade-in">
+              <BookOpen size={16} />
+              MY LEARNING DASHBOARD
         </div>
-        <div className="card p-4">
-          <div className="text-xs text-gray-500">To Learn</div>
-          <div className="text-2xl font-semibold">{statusCounts['to-learn']}</div>
-        </div>
-        <div className="card p-4">
-          <div className="text-xs text-gray-500">In Progress</div>
-          <div className="text-2xl font-semibold">{statusCounts['in-progress']}</div>
-        </div>
-        <div className="card p-4">
-          <div className="text-xs text-gray-500">Completed</div>
-          <div className="text-2xl font-semibold">{statusCounts['completed']}</div>
-        </div>
-      </div>
-
-      <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div>
-          <h1 className="text-3xl font-bold mb-2">My Learning</h1>
-          <p className="text-gray-600">Track and manage your learning journey</p>
-        </div>
+            <h1 className="text-4xl md:text-6xl font-light text-gray-900 mb-6 animate-fade-in" style={{ fontFamily: 'Dancing Script, cursive' }}>
+              Your Learning Journey
+            </h1>
+            <p className="text-lg md:text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
+              Track your progress and continue your educational journey with AI assistance.
+            </p>
         <Button 
           onClick={() => setShowChat(!showChat)}
-          variant={showChat ? "outline" : "primary"}
-          className="flex items-center gap-2"
+              className={`${showChat ? 'bg-gray-100 text-gray-700 hover:bg-gray-200' : 'bg-black text-white hover:bg-gray-800'} flex items-center gap-2 mx-auto px-6 py-3 rounded-xl font-medium`}
         >
           {showChat ? (
             <>
@@ -120,100 +108,45 @@ const MyLearningPage: React.FC = () => {
             </>
           )}
         </Button>
-      </div>
-
-      {/* Mobile View */}
-      {/* Controls: Filters + Sort */}
-      <div className="mb-5 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant={filter === 'all' ? 'primary' : 'outline'}
-            onClick={() => setFilter('all')}
-            size="sm"
-          >
-            All ({userVideos.length})
-          </Button>
-          <Button
-            variant={filter === 'to-learn' ? 'primary' : 'outline'}
-            onClick={() => setFilter('to-learn')}
-            size="sm"
-            className="flex items-center gap-1"
-          >
-            <BookOpen size={16} />
-            To Learn ({statusCounts['to-learn']})
-          </Button>
-          <Button
-            variant={filter === 'in-progress' ? 'primary' : 'outline'}
-            onClick={() => setFilter('in-progress')}
-            size="sm"
-            className="flex items-center gap-1"
-          >
-            <Clock size={16} />
-            In Progress ({statusCounts['in-progress']})
-          </Button>
-          <Button
-            variant={filter === 'completed' ? 'primary' : 'outline'}
-            onClick={() => setFilter('completed')}
-            size="sm"
-            className="flex items-center gap-1"
-          >
-            <CheckCircle size={16} />
-            Completed ({statusCounts['completed']})
-          </Button>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-600">Sort:</span>
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as 'recommended' | 'title')}
-            className="text-sm border border-gray-300 rounded-lg px-2 py-1 bg-white"
-            aria-label="Sort my learning"
-          >
-            <option value="recommended">Recommended</option>
-            <option value="title">Title (A–Z)</option>
-          </select>
+          </div>
         </div>
       </div>
 
-      {isMobile && (
-        <>
-          {showMobileChat ? (
-            <div className="w-full mb-6">
-              <LearningChatInterface title="AI Learning Chat" />
-            </div>
-          ) : (
-            <div className="w-full">
-              {user && (
-                <>
-                  <LearningAssistant 
-                    currentCategory={filter !== 'all' ? filter : undefined}
-                    userLevel={
-                      statusCounts.completed > 10 
-                        ? 'advanced' 
-                        : statusCounts.completed > 3 
-                          ? 'intermediate' 
-                          : 'beginner'
-                    }
-                  />
-                  
-                  {/* Display saved learning plans if any exist */}
-                  <SavedLearningPlans />
-                </>
-              )}
+      <div className="container mx-auto px-4 pb-8">
+        {/* Sleek Stats Cards */}
+        <div className="mb-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 animate-slide-up">
+          <div className="bg-gray-50 rounded-3xl p-8 text-center hover:bg-white hover:shadow-lg transition-all duration-500 border border-transparent hover:border-gray-200">
+            <div className="text-sm font-medium text-gray-500 mb-3">Total Saved</div>
+            <div className="text-4xl font-light text-gray-900 mb-2" style={{ fontFamily: 'Dancing Script, cursive' }}>{userVideos.length}</div>
+          </div>
+          <div className="bg-gray-50 rounded-3xl p-8 text-center hover:bg-white hover:shadow-lg transition-all duration-500 border border-transparent hover:border-gray-200">
+            <div className="text-sm font-medium text-gray-500 mb-3">To Learn</div>
+            <div className="text-4xl font-light text-gray-900 mb-2" style={{ fontFamily: 'Dancing Script, cursive' }}>{statusCounts['to-learn']}</div>
+          </div>
+          <div className="bg-gray-50 rounded-3xl p-8 text-center hover:bg-white hover:shadow-lg transition-all duration-500 border border-transparent hover:border-gray-200">
+            <div className="text-sm font-medium text-gray-500 mb-3">In Progress</div>
+            <div className="text-4xl font-light text-gray-900 mb-2" style={{ fontFamily: 'Dancing Script, cursive' }}>{statusCounts['in-progress']}</div>
+          </div>
+          <div className="bg-gray-50 rounded-3xl p-8 text-center hover:bg-white hover:shadow-lg transition-all duration-500 border border-transparent hover:border-gray-200">
+            <div className="text-sm font-medium text-gray-500 mb-3">Completed</div>
+            <div className="text-4xl font-light text-gray-900 mb-2" style={{ fontFamily: 'Dancing Script, cursive' }}>{statusCounts['completed']}</div>
+          </div>
+        </div>
 
-              {/* Status Filters */}
-              <div className="flex flex-wrap gap-3 mb-8">
+        {/* Controls: Filters + Sort */}
+        <div className="mb-8 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 animate-fade-in">
+          <div className="flex flex-wrap gap-2">
                 <Button
                   variant={filter === 'all' ? 'primary' : 'outline'}
                   onClick={() => setFilter('all')}
-                  className="flex items-center gap-1"
+              className="btn-sm"
                 >
                   All ({userVideos.length})
                 </Button>
                 <Button
                   variant={filter === 'to-learn' ? 'primary' : 'outline'}
                   onClick={() => setFilter('to-learn')}
-                  className="flex items-center gap-1"
+              className="btn-sm flex items-center gap-1"
                 >
                   <BookOpen size={16} />
                   To Learn ({statusCounts['to-learn']})
@@ -221,7 +154,7 @@ const MyLearningPage: React.FC = () => {
                 <Button
                   variant={filter === 'in-progress' ? 'primary' : 'outline'}
                   onClick={() => setFilter('in-progress')}
-                  className="flex items-center gap-1"
+              className="btn-sm flex items-center gap-1"
                 >
                   <Clock size={16} />
                   In Progress ({statusCounts['in-progress']})
@@ -229,53 +162,37 @@ const MyLearningPage: React.FC = () => {
                 <Button
                   variant={filter === 'completed' ? 'primary' : 'outline'}
                   onClick={() => setFilter('completed')}
-                  className="flex items-center gap-1"
+              className="btn-sm flex items-center gap-1"
                 >
                   <CheckCircle size={16} />
                   Completed ({statusCounts['completed']})
                 </Button>
               </div>
-
-              {sortedVideos.length === 0 ? (
-                <div className="text-center py-12">
-                  <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
-                    <Search size={32} className="text-gray-400" />
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-gray-600">Sort by:</span>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as 'recommended' | 'title')}
+              className="text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              aria-label="Sort my learning"
+            >
+              <option value="recommended">Recommended</option>
+              <option value="title">Title (A–Z)</option>
+            </select>
+          </div>
                   </div>
-                  <h3 className="text-xl font-medium mb-2">No videos found</h3>
-                  <p className="text-gray-600 mb-6">
-                    {filter === 'all'
-                      ? "You haven't saved any videos to your learning list yet."
-                      : `You don't have any ${filter.replace('-', ' ')} videos.`}
-                  </p>
-                  <Link to="/explore">
-                    <Button>Explore Videos</Button>
-                  </Link>
+
+        {/* Content Layout */}
+        {isMobile && showMobileChat ? (
+          <div className="w-full animate-fade-in">
+            <LearningChatInterface title="AI Learning Chat" />
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-                  {sortedVideos.map((video) => (
-                    <div key={video.id} className="flex flex-col h-full">
-                    <VideoCard
-                      video={video}
-                      onUpdateStatus={updateStatus}
-                      onRemove={removeVideo}
-                    />
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </>
-      )}
-
-      {/* Desktop View */}
-      {!isMobile && (
-        <div className="flex flex-row gap-8">
+          <div className={`flex flex-col ${!isMobile && showChat ? 'lg:flex-row gap-8' : ''}`}>
           {/* Learning Content Section */}
-          <div className={`w-full ${showChat ? 'lg:w-1/2' : ''}`}>
+            <div className={`w-full ${!isMobile && showChat ? 'lg:w-1/2' : ''}`}>
             {user && (
-              <>
+                <div className="mb-8 animate-slide-up">
                 <LearningAssistant 
                   currentCategory={filter !== 'all' ? filter : undefined}
                   userLevel={
@@ -289,62 +206,30 @@ const MyLearningPage: React.FC = () => {
                 
                 {/* Display saved learning plans if any exist */}
                 <SavedLearningPlans />
-              </>
-            )}
-
-            {/* Status Filters */}
-            <div className="flex flex-wrap gap-3 mb-8">
-              <Button
-                variant={filter === 'all' ? 'primary' : 'outline'}
-                onClick={() => setFilter('all')}
-                className="flex items-center gap-1"
-              >
-                All ({userVideos.length})
-              </Button>
-              <Button
-                variant={filter === 'to-learn' ? 'primary' : 'outline'}
-                onClick={() => setFilter('to-learn')}
-                className="flex items-center gap-1"
-              >
-                <BookOpen size={16} />
-                To Learn ({statusCounts['to-learn']})
-              </Button>
-              <Button
-                variant={filter === 'in-progress' ? 'primary' : 'outline'}
-                onClick={() => setFilter('in-progress')}
-                className="flex items-center gap-1"
-              >
-                <Clock size={16} />
-                In Progress ({statusCounts['in-progress']})
-              </Button>
-              <Button
-                variant={filter === 'completed' ? 'primary' : 'outline'}
-                onClick={() => setFilter('completed')}
-                className="flex items-center gap-1"
-              >
-                <CheckCircle size={16} />
-                Completed ({statusCounts['completed']})
-              </Button>
-            </div>
-
-            {sortedVideos.length === 0 ? (
-              <div className="text-center py-12">
-                <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
-                  <Search size={32} className="text-gray-400" />
                 </div>
-                <h3 className="text-xl font-medium mb-2">No videos found</h3>
-                <p className="text-gray-600 mb-6">
+              )}
+
+              {sortedVideos.length === 0 ? (
+                <div className="text-center py-16 animate-fade-in">
+                  <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center">
+                    <Search size={40} className="text-blue-600" />
+                  </div>
+                  <h3 className="text-2xl font-bold mb-4 text-gray-800">No videos found</h3>
+                  <p className="text-gray-600 mb-8 max-w-md mx-auto text-lg">
                   {filter === 'all'
-                    ? "You haven't saved any videos to your learning list yet."
-                    : `You don't have any ${filter.replace('-', ' ')} videos.`}
+                      ? "You haven't saved any videos to your learning list yet. Start exploring and save courses that interest you!"
+                      : `You don't have any ${filter.replace('-', ' ')} videos. Try exploring new content or changing your filter.`}
                 </p>
                 <Link to="/explore">
-                  <Button>Explore Videos</Button>
+                    <Button className="btn-lg">
+                      <Search size={20} className="mr-2" />
+                      Explore Videos
+                    </Button>
                 </Link>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-                {sortedVideos.map((video) => (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-6 animate-fade-in">
+                  {sortedVideos.map((video) => (
                   <div key={video.id} className="flex flex-col h-full">
                   <VideoCard
                     video={video}
@@ -358,13 +243,14 @@ const MyLearningPage: React.FC = () => {
           </div>
 
           {/* Chat Interface Section */}
-          {showChat && (
-            <div className="w-1/2">
+            {!isMobile && showChat && (
+              <div className="w-1/2 animate-slide-up">
               <LearningChatInterface title="AI Learning Chat" />
             </div>
           )}
         </div>
       )}
+      </div>
     </div>
   );
 };

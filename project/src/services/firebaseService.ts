@@ -361,17 +361,17 @@ export async function saveVideo(userId: string, video: UserVideo): Promise<void>
           savedVideos: increment(1),
           lastActive: serverTimestamp()
         });
-        } else {
-          // Create new user stats document
-          await setDoc(userStatsRef, {
-            savedVideos: 1,
-            completedVideos: 0,
-            learningStreak: 0,
-            totalLearningTime: 0,
-            lastActive: serverTimestamp(),
-            createdAt: serverTimestamp()
-          });
-        }
+      } else {
+        // Create new user stats document
+        await setDoc(userStatsRef, {
+          savedVideos: 1,
+          completedVideos: 0,
+          learningStreak: 0,
+          totalLearningTime: 0,
+          lastActive: serverTimestamp(),
+          createdAt: serverTimestamp()
+        });
+      }
     }
     
     console.log('Video saved successfully');

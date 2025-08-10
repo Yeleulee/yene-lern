@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Header from './components/layout/Header';
+import Footer from './components/layout/Footer';
 import HomePage from './pages/HomePage';
 import DashboardPage from './pages/DashboardPage';
 import VideoPage from './pages/VideoPage';
@@ -120,6 +121,9 @@ function App() {
                   </Routes>
                   </PageTransitionWrapper>
                 </main>
+
+                {/* Footer */}
+                <Footer />
 
                 {/* Global Chat Widget */}
                 <ChatWidgetContainer />
