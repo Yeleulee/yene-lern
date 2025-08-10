@@ -86,6 +86,10 @@ body {
   from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: translateY(0); }
 }
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 @keyframes float {
   0%, 100% { transform: translateY(0px) rotate(0deg); }
   33% { transform: translateY(-10px) rotate(1deg); }
@@ -97,6 +101,7 @@ body {
 }
 .animate-fade-in { animation: fadeIn 400ms ease-out both; }
 .animate-slide-up { animation: slideUp 450ms ease-out both; }
+.animate-slide-down { animation: slideDown 300ms ease-out both; }
 .animate-float { animation: float 6s ease-in-out infinite; }
 .animate-float-slow { animation: floatSlow 8s ease-in-out infinite; }
 
