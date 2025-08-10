@@ -13,7 +13,7 @@ import {
   onAuthStateChanged,
   AuthErrorCodes
 } from 'firebase/auth';
-import { getFirestore, collection, doc, getDoc, getDocs, setDoc, updateDoc, query, where, orderBy, limit, increment, Timestamp, serverTimestamp, deleteDoc } from 'firebase/firestore';
+import { getFirestore, collection, doc, getDoc, getDocs, setDoc, updateDoc, query, where, orderBy, limit, increment, Timestamp, serverTimestamp, deleteDoc, onSnapshot } from 'firebase/firestore';
 import { getStorage, ref, uploadString, getDownloadURL, deleteObject } from 'firebase/storage';
 
 // Firebase configuration with hardcoded values for deployment
@@ -211,6 +211,46 @@ export async function getUserVideos(userId: string): Promise<UserVideo[]> {
   } catch (error) {
     console.error('Failed to fetch user videos from Firestore:', error);
     return [];
+  }
+}
+
+// Real-time subscription to user videos for live updates across devices
+export function subscribeToUserVideos(
+  userId: string,
+  onChange: (videos: UserVideo[]) => void,
+  onError?: (error: unknown) => void
+): () => void {
+  try {
+    const videosCol = collection(db, `users/${userId}/videos`);
+    const unsubscribe = onSnapshot(
+      videosCol,
+      (snapshot) => {
+        const results: UserVideo[] = [];
+        snapshot.forEach((docSnap) => {
+          const data = docSnap.data() as any;
+          results.push({
+            id: data.id || docSnap.id,
+            title: data.title || '',
+            description: data.description || '',
+            thumbnailUrl: data.thumbnailUrl || '',
+            channelTitle: data.channelTitle || '',
+            publishedAt: data.publishedAt || '',
+            status: data.status || 'to-learn',
+            progress: typeof data.progress === 'number' ? data.progress : undefined,
+            lastWatched: data.lastWatched ? (data.lastWatched instanceof Timestamp ? data.lastWatched.toDate().toISOString() : data.lastWatched) : undefined,
+          });
+        });
+        onChange(results);
+      },
+      (err) => {
+        console.error('subscribeToUserVideos error:', err);
+        if (onError) onError(err);
+      }
+    );
+    return unsubscribe;
+  } catch (error) {
+    console.error('Failed to subscribe to user videos:', error);
+    return () => {};
   }
 }
 

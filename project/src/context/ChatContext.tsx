@@ -41,6 +41,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [connectionChecked, setConnectionChecked] = useState(false);
   const [lastConnectionCheck, setLastConnectionCheck] = useState(0);
   const [compatibilityChecked, setCompatibilityChecked] = useState(false);
+  const [lastError, setLastError] = useState<string | null>(null);
 
   // Load messages from localStorage on mount
   useEffect(() => {
@@ -130,6 +131,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const result = await testGeminiConnection();
       const isConnected = result.success;
+      if (!result.success) setLastError(result.message);
       
       if (!isConnected && !compatibilityChecked) {
         // If connection failed and we haven't tried compatibility check yet,
@@ -146,8 +148,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setConnectionStatus(isConnected ? 'connected' : 'disconnected');
       setConnectionChecked(true);
       return isConnected;
-    } catch (error) {
+      } catch (error) {
       console.error('Error checking connection:', error);
+      setLastError(error instanceof Error ? error.message : 'Unknown error');
       setConnectionStatus('disconnected');
       return false;
     }
@@ -273,6 +276,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setMessages((prev) => [...prev, aiMessage]);
       } catch (error) {
         console.error('API Error handling message:', error);
+        setLastError(error instanceof Error ? error.message : 'Unknown error');
         
         // Provide clear error message about API issues
         const errorMessage: Message = {
@@ -300,6 +304,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } catch (error) {
       console.error('Error in sendMessage function:', error);
+      setLastError(error instanceof Error ? error.message : 'Unknown error');
       
       // Add error message with more specific information
       const errorMessage: Message = {

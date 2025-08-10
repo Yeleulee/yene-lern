@@ -102,6 +102,26 @@ const HomePage: React.FC = () => {
         </div>
       </section>
 
+      {/* Social proof / stats strip */}
+      <section className="py-6 bg-white">
+        <div className="container mx-auto px-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="card p-4 text-center">
+              <div className="text-xs text-gray-500">Learners</div>
+              <div className="text-2xl font-semibold">10k+</div>
+            </div>
+            <div className="card p-4 text-center">
+              <div className="text-xs text-gray-500">Courses Saved</div>
+              <div className="text-2xl font-semibold">120k+</div>
+            </div>
+            <div className="card p-4 text-center">
+              <div className="text-xs text-gray-500">AI Answers</div>
+              <div className="text-2xl font-semibold">1.2M</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Features Section */}
       <section className="py-20 bg-white">
         <div className="container mx-auto px-4">
@@ -277,7 +297,7 @@ const HomePage: React.FC = () => {
         <section className="py-20 bg-gray-50">
           <div className="container mx-auto px-4">
             <h2 className="text-3xl font-bold mb-8">Search Results</h2>
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {searchResults.map((video) => (
                 <VideoCard
                   key={video.id}

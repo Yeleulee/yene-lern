@@ -51,6 +51,7 @@ const ExplorePage: React.FC = () => {
   const [trendingResults, setTrendingResults] = useState<Video[]>([]);
   const [isTrendingLoading, setIsTrendingLoading] = useState(false);
   const [videoLikes, setVideoLikes] = useState<Record<string, { count: number; isLiked: boolean }>>({});
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
 
   // Fetch trending videos on initial load
   useEffect(() => {
@@ -214,7 +215,7 @@ const ExplorePage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-gray-50">
       {/* Hero section */}
-      <div className="relative bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-16 overflow-hidden">
+      <div className="relative bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-14 overflow-hidden">
         <div className="absolute inset-0 opacity-10">
           <div className="absolute left-1/4 top-1/4 h-48 w-48 rounded-full bg-white blur-3xl"></div>
           <div className="absolute right-1/4 bottom-1/4 h-64 w-64 rounded-full bg-blue-300 blur-3xl"></div>
@@ -222,10 +223,10 @@ const ExplorePage: React.FC = () => {
         
         <div className="container mx-auto px-4 relative z-10">
           <div className="max-w-4xl mx-auto text-center">
-            <h1 className="text-4xl md:text-5xl font-bold mb-4 animate-fade-in">
+            <h1 className="text-3xl md:text-5xl font-bold mb-4 animate-fade-in">
               Find Your Perfect Learning Course
             </h1>
-            <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
+            <p className="text-lg md:text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
               Discover highly-rated courses loved by students worldwide. Search by topic and find the perfect course for your learning journey.
             </p>
             
@@ -246,9 +247,9 @@ const ExplorePage: React.FC = () => {
         </div>
       </div>
       
-      <div className="container mx-auto px-4 py-12">
+          <div className="container mx-auto px-4 py-10">
         {/* Controls Row */}
-        <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        <div className="mb-6 hidden md:flex md:flex-row md:items-center md:justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-sm text-gray-600">Filter by:</span>
             <select
@@ -289,6 +290,21 @@ const ExplorePage: React.FC = () => {
             </select>
           </div>
         </div>
+
+        {/* Mobile sticky Filters button */}
+        <div className="md:hidden">
+          <div className="sticky top-0 z-10 -mt-4 mb-4 bg-gradient-to-b from-gray-50 to-transparent pt-2 pb-2">
+            <div className="flex justify-end">
+              <button
+                onClick={() => setShowMobileFilters(true)}
+                className="btn btn-outline px-4 py-2"
+                aria-label="Open filters"
+              >
+                Filters
+              </button>
+            </div>
+          </div>
+        </div>
         {saveError && (
           <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded mb-6 animate-fade-in">
             <div className="flex items-center">
@@ -299,6 +315,80 @@ const ExplorePage: React.FC = () => {
               </div>
               <div>
                 <p className="font-medium">{saveError}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Mobile Filters Bottom Sheet */}
+        {showMobileFilters && (
+          <div className="fixed inset-0 z-30">
+            <div
+              className="absolute inset-0 bg-black/40"
+              onClick={() => setShowMobileFilters(false)}
+              aria-label="Close filters"
+            />
+            <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl p-4">
+              <div className="h-1 w-12 bg-gray-300 rounded-full mx-auto mb-4" />
+              <div className="mb-3">
+                <div className="text-sm font-medium mb-1">Duration</div>
+                <select
+                  value={durationFilter}
+                  onChange={(e) => setDurationFilter(e.target.value as any)}
+                  className="w-full text-sm border border-gray-300 rounded-lg px-2 py-2 bg-white"
+                  aria-label="Filter by duration"
+                >
+                  <option value="all">All durations</option>
+                  <option value="short">Short (&lt; 20 min)</option>
+                  <option value="medium">Medium (20–120 min)</option>
+                  <option value="long">Long (&gt; 120 min)</option>
+                </select>
+              </div>
+              <div className="mb-3">
+                <div className="text-sm font-medium mb-1">Category</div>
+                <select
+                  value={selectedCategory || ''}
+                  onChange={(e) => setSelectedCategory(e.target.value || null)}
+                  className="w-full text-sm border border-gray-300 rounded-lg px-2 py-2 bg-white"
+                  aria-label="Filter by category"
+                >
+                  <option value="">All categories</option>
+                  {featuredCategories.map(c => (
+                    <option key={c.name} value={c.name}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="mb-4">
+                <div className="text-sm font-medium mb-1">Sort by</div>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as any)}
+                  className="w-full text-sm border border-gray-300 rounded-lg px-2 py-2 bg-white"
+                  aria-label="Sort results"
+                >
+                  <option value="relevance">Relevance</option>
+                  <option value="date">Newest</option>
+                  <option value="views">Most viewed</option>
+                  <option value="duration">Longest</option>
+                </select>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  className="btn btn-outline flex-1"
+                  onClick={() => {
+                    setDurationFilter('all');
+                    setSelectedCategory(null);
+                    setSortBy('relevance');
+                  }}
+                >
+                  Reset
+                </button>
+                <button
+                  className="btn btn-primary flex-1"
+                  onClick={() => setShowMobileFilters(false)}
+                >
+                  Apply
+                </button>
               </div>
             </div>
           </div>

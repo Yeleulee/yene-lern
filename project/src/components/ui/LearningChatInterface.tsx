@@ -198,6 +198,9 @@ const LearningChatInterface: React.FC<LearningChatInterfaceProps> = ({
                   <ApiKeyForm onSuccess={handleSetNewApiKey} />
                 </div>
               </details>
+              <div className="text-xs text-gray-600">
+                Tip: In production, a key is required. In development, a fallback key is used automatically.
+              </div>
             </div>
           </div>
         </div>

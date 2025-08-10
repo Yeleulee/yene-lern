@@ -13,6 +13,7 @@ const MyLearningPage: React.FC = () => {
   const { user } = useAuth();
   const { userVideos, updateStatus, removeVideo } = useLearning();
   const [filter, setFilter] = useState<'all' | 'to-learn' | 'in-progress' | 'completed'>('all');
+  const [sortBy, setSortBy] = useState<'recommended' | 'title'>('recommended');
   const [showChat, setShowChat] = useState(false);
   const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth < 1024 : true);
 
@@ -48,9 +49,23 @@ const MyLearningPage: React.FC = () => {
     );
   }
 
-  const filteredVideos = filter === 'all' 
+  const filteredVideos = (filter === 'all' 
     ? userVideos 
-    : userVideos.filter(video => video.status === filter);
+    : userVideos.filter(video => video.status === filter))
+    .slice();
+
+  // Sort videos for a professional, helpful default order
+  const sortedVideos = filteredVideos.sort((a, b) => {
+    if (sortBy === 'title') {
+      return a.title.localeCompare(b.title);
+    }
+    // recommended: in-progress first, then to-learn, then completed
+    const order: Record<string, number> = { 'in-progress': 0, 'to-learn': 1, 'completed': 2 };
+    const aRank = order[a.status] ?? 3;
+    const bRank = order[b.status] ?? 3;
+    if (aRank !== bRank) return aRank - bRank;
+    return a.title.localeCompare(b.title);
+  });
 
   const statusCounts = {
     'to-learn': userVideos.filter(v => v.status === 'to-learn').length,
@@ -64,7 +79,26 @@ const MyLearningPage: React.FC = () => {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="card p-4">
+          <div className="text-xs text-gray-500">Total Saved</div>
+          <div className="text-2xl font-semibold">{userVideos.length}</div>
+        </div>
+        <div className="card p-4">
+          <div className="text-xs text-gray-500">To Learn</div>
+          <div className="text-2xl font-semibold">{statusCounts['to-learn']}</div>
+        </div>
+        <div className="card p-4">
+          <div className="text-xs text-gray-500">In Progress</div>
+          <div className="text-2xl font-semibold">{statusCounts['in-progress']}</div>
+        </div>
+        <div className="card p-4">
+          <div className="text-xs text-gray-500">Completed</div>
+          <div className="text-2xl font-semibold">{statusCounts['completed']}</div>
+        </div>
+      </div>
+
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-3xl font-bold mb-2">My Learning</h1>
           <p className="text-gray-600">Track and manage your learning journey</p>
@@ -89,6 +123,58 @@ const MyLearningPage: React.FC = () => {
       </div>
 
       {/* Mobile View */}
+      {/* Controls: Filters + Sort */}
+      <div className="mb-5 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant={filter === 'all' ? 'primary' : 'outline'}
+            onClick={() => setFilter('all')}
+            size="sm"
+          >
+            All ({userVideos.length})
+          </Button>
+          <Button
+            variant={filter === 'to-learn' ? 'primary' : 'outline'}
+            onClick={() => setFilter('to-learn')}
+            size="sm"
+            className="flex items-center gap-1"
+          >
+            <BookOpen size={16} />
+            To Learn ({statusCounts['to-learn']})
+          </Button>
+          <Button
+            variant={filter === 'in-progress' ? 'primary' : 'outline'}
+            onClick={() => setFilter('in-progress')}
+            size="sm"
+            className="flex items-center gap-1"
+          >
+            <Clock size={16} />
+            In Progress ({statusCounts['in-progress']})
+          </Button>
+          <Button
+            variant={filter === 'completed' ? 'primary' : 'outline'}
+            onClick={() => setFilter('completed')}
+            size="sm"
+            className="flex items-center gap-1"
+          >
+            <CheckCircle size={16} />
+            Completed ({statusCounts['completed']})
+          </Button>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-gray-600">Sort:</span>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as 'recommended' | 'title')}
+            className="text-sm border border-gray-300 rounded-lg px-2 py-1 bg-white"
+            aria-label="Sort my learning"
+          >
+            <option value="recommended">Recommended</option>
+            <option value="title">Title (A–Z)</option>
+          </select>
+        </div>
+      </div>
+
       {isMobile && (
         <>
           {showMobileChat ? (
@@ -150,7 +236,7 @@ const MyLearningPage: React.FC = () => {
                 </Button>
               </div>
 
-              {filteredVideos.length === 0 ? (
+              {sortedVideos.length === 0 ? (
                 <div className="text-center py-12">
                   <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
                     <Search size={32} className="text-gray-400" />
@@ -167,7 +253,7 @@ const MyLearningPage: React.FC = () => {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-                  {filteredVideos.map((video) => (
+                  {sortedVideos.map((video) => (
                     <div key={video.id} className="flex flex-col h-full">
                     <VideoCard
                       video={video}
@@ -241,7 +327,7 @@ const MyLearningPage: React.FC = () => {
               </Button>
             </div>
 
-            {filteredVideos.length === 0 ? (
+            {sortedVideos.length === 0 ? (
               <div className="text-center py-12">
                 <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
                   <Search size={32} className="text-gray-400" />
@@ -258,7 +344,7 @@ const MyLearningPage: React.FC = () => {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-                {filteredVideos.map((video) => (
+                {sortedVideos.map((video) => (
                   <div key={video.id} className="flex flex-col h-full">
                   <VideoCard
                     video={video}

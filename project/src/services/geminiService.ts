@@ -45,13 +45,17 @@ const getApiKey = (): string | null => {
     console.log('Using API key from local storage');
     return localStorageKey;
   }
-  
-  // Hardcoded fallback for development and demo purposes
-  // This ensures the app works even if env vars aren't loaded
-  const fallbackKey = "AIzaSyAVfoFGXM_wywyApXziZGMoP5wrsYhOsDI";
-  console.log('Using fallback API key');
-  localStorage.setItem('gemini_api_key', fallbackKey); // Store it in localStorage for persistence
-  return fallbackKey;
+
+  // In development, provide a demo fallback; in production, require user input
+  if (import.meta.env.MODE === 'development') {
+    const fallbackKey = "AIzaSyAVfoFGXM_wywyApXziZGMoP5wrsYhOsDI";
+    console.log('Using development fallback API key');
+    localStorage.setItem('gemini_api_key', fallbackKey);
+    return fallbackKey;
+  }
+
+  // No key available in production
+  return null;
 };
 
 // Get the API key
@@ -276,7 +280,16 @@ export async function askGemini(question: string): Promise<string> {
   console.log('Sending request to Gemini API endpoint:', API_URL);
   
   // Try multiple endpoints if the first one fails
-  let endpoints = [API_URL];
+  // Route through backend proxy in production
+  let endpoints = [
+    (typeof window !== 'undefined' && window.location && window.location.origin
+      ? `${window.location.origin}/api/gemini/generate`
+      : '/api/gemini/generate')
+  ];
+  // Keep direct endpoints as fallback in development
+  if (import.meta.env.MODE === 'development') {
+    endpoints.push(API_URL);
+  }
   
   // Add fallback endpoints if the current one isn't already being used
   Object.values(API_ENDPOINTS).forEach(endpoint => {
@@ -292,29 +305,22 @@ export async function askGemini(question: string): Promise<string> {
     try {
       console.log(`Trying endpoint: ${endpoint}`);
       
-      const response = await fetchWithRetry(`${endpoint}?key=${API_KEY}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      contents: [
+      const response = await fetchWithRetry(
+        endpoint.includes('/api/gemini/generate') ? endpoint : `${endpoint}?key=${API_KEY}`,
         {
-          parts: [
-            {
-              text: systemPrompt,
-            },
-          ],
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(
+            endpoint.includes('/api/gemini/generate')
+              ? { prompt: systemPrompt, config: { temperature: 0.7, topP: 0.95, topK: 40, maxOutputTokens: 1024 } }
+              : {
+                  contents: [{ parts: [{ text: systemPrompt }]}],
+                  generationConfig: { temperature: 0.7, topP: 0.95, topK: 40, maxOutputTokens: 1024 }
+                }
+          )
         },
-      ],
-      generationConfig: {
-        temperature: 0.7,
-        topP: 0.95,
-            topK: 40,
-            maxOutputTokens: 1024 // Add a max output token limit to ensure we get a response
-      }
-    }),
-      }, 2); // Try twice per endpoint
+        2
+      );
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
