@@ -6,6 +6,7 @@ import { useLearningStats } from '../context/LearningStatsContext';
 import { ArrowUp, Award, Clock, CheckCircle, TrendingUp, Users, Brain, Calendar, Camera, X, Upload, User } from 'lucide-react';
 import Button from '../components/ui/Button';
 import ProfilePictureEditor from '../components/profile/ProfilePictureEditor';
+import ProfileEditForm from '../components/profile/ProfileEditForm';
 
 interface LeaderboardUser {
   uid: string;
@@ -74,8 +75,10 @@ const ProfilePage: React.FC = () => {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showEditor, setShowEditor] = useState(false);
+  const [showEditForm, setShowEditForm] = useState(false);
   const [tempImageUrl, setTempImageUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
 
   // Calculate user stats
   const completedVideos = userVideos.filter(v => v.status === 'completed').length;
@@ -87,6 +90,23 @@ const ProfilePage: React.FC = () => {
       refreshStats();
     }
   }, [user]);
+
+  // Close profile menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
+        setShowProfileMenu(false);
+      }
+    };
+
+    if (showProfileMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showProfileMenu]);
 
   // Date formatter
   const formatDate = (dateString: string) => {
@@ -188,6 +208,21 @@ const ProfilePage: React.FC = () => {
     setTempImageUrl(null);
   };
 
+  // Handle profile update
+  const handleProfileUpdate = async (updates: Partial<User>) => {
+    if (updateProfile) {
+      try {
+        console.log('ProfilePage: Starting profile update');
+        await updateProfile(updates);
+        console.log('ProfilePage: Profile update completed successfully');
+        // Don't close the form here - let the ProfileEditForm handle the success state and closing
+      } catch (error) {
+        console.error('ProfilePage: Error updating profile:', error);
+        throw error; // Let the form handle the error display
+      }
+    }
+  };
+
   if (!user) {
     return (
       <div className="container mx-auto px-4 py-16 text-center">
@@ -214,7 +249,7 @@ const ProfilePage: React.FC = () => {
       {/* Profile Header */}
       <div className="bg-gradient-to-br from-blue-600 to-purple-700 rounded-2xl p-8 mb-8 text-white">
         <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
-          <div className="relative group">
+          <div className="relative group" ref={profileMenuRef}>
             <div 
               className="w-24 h-24 rounded-full bg-white p-1 shadow-lg cursor-pointer overflow-hidden"
               onClick={handleProfilePictureClick}
@@ -239,12 +274,13 @@ const ProfilePage: React.FC = () => {
             
             {/* Profile picture menu */}
             {showProfileMenu && (
-              <div className="absolute left-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10">
+              <div className="absolute left-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-20 animate-fade-in">
                 <div className="py-1" role="menu" aria-orientation="vertical">
                   <button
                     onClick={handleUploadClick}
-                    className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                    className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left transition-colors"
                     role="menuitem"
+                    disabled={isUploading}
                   >
                     <Upload size={16} className="mr-2" />
                     Upload New Picture
@@ -252,8 +288,9 @@ const ProfilePage: React.FC = () => {
                   {user.photoURL && (
                     <button
                       onClick={handleRemovePicture}
-                      className="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-gray-100 w-full text-left"
+                      className="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-gray-100 w-full text-left transition-colors"
                       role="menuitem"
+                      disabled={isUploading}
                     >
                       <X size={16} className="mr-2" />
                       Remove Picture
@@ -359,7 +396,13 @@ const ProfilePage: React.FC = () => {
                   `Interested in: ${user.learningPreferences.join(', ')}` : 
                   `${user.displayName || 'You'} is learning through video tutorials and focused courses. Connect your learning preferences to customize your experience.`}
               </p>
-              <Button variant="outline" size="sm">Edit Profile</Button>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setShowEditForm(true)}
+              >
+                Edit Profile
+              </Button>
             </div>
             
             <div className="bg-white rounded-xl shadow-sm p-6">
@@ -636,6 +679,18 @@ const ProfilePage: React.FC = () => {
           imageUrl={tempImageUrl}
           onSave={handleSaveProfilePicture}
           onCancel={handleCancelEdit}
+        />
+      )}
+
+      {/* Profile Edit Form Modal */}
+      {showEditForm && (
+        <ProfileEditForm 
+          user={user}
+          onSave={handleProfileUpdate}
+          onCancel={() => {
+            console.log('ProfilePage: Closing edit form');
+            setShowEditForm(false);
+          }}
         />
       )}
     </div>

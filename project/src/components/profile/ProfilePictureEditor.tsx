@@ -53,8 +53,8 @@ const ProfilePictureEditor: React.FC<ProfilePictureEditorProps> = ({
     // Implement boundaries to prevent dragging too far
     if (containerRef.current && imageRef.current) {
       const container = containerRef.current.getBoundingClientRect();
-      const scaledImageWidth = imageRef.current.width * zoom;
-      const scaledImageHeight = imageRef.current.height * zoom;
+      const scaledImageWidth = imageRef.current.naturalWidth * zoom;
+      const scaledImageHeight = imageRef.current.naturalHeight * zoom;
       
       // Calculate max drag distance
       const maxX = Math.max(0, (scaledImageWidth - container.width) / 2);
@@ -176,19 +176,29 @@ const ProfilePictureEditor: React.FC<ProfilePictureEditorProps> = ({
               ref={imageRef}
               src={imageUrl}
               alt="Profile"
-              className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 cursor-move"
+              className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 cursor-move select-none"
               style={{
                 transform: `translate(-50%, -50%) translate(${position.x}px, ${position.y}px) scale(${zoom})`,
                 maxWidth: 'none',
-                maxHeight: 'none'
+                maxHeight: 'none',
+                minWidth: '100%',
+                minHeight: '100%'
               }}
               draggable={false}
+              onLoad={() => {
+                // Ensure image is loaded before allowing interactions
+                if (imageRef.current) {
+                  setZoom(Math.max(1, Math.min(containerRef.current?.offsetWidth || 256 / imageRef.current.naturalWidth, containerRef.current?.offsetHeight || 256 / imageRef.current.naturalHeight)));
+                }
+              }}
             />
             
             {/* Drag indicator */}
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 hover:opacity-100 transition-opacity">
-              <Move size={32} className="text-white drop-shadow-lg" />
-            </div>
+            {isDragging && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <Move size={32} className="text-white drop-shadow-lg" />
+              </div>
+            )}
           </div>
           
           {/* Controls */}

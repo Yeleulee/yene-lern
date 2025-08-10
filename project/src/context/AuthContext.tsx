@@ -254,12 +254,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       setLoading(true);
       setError(null);
+      console.log('AuthContext: Starting profile update');
+      
       const updatedUser = await updateUserProfile(userProfile);
       if (updatedUser) {
+        console.log('AuthContext: Profile update successful, updating state');
         setUser(updatedUser);
         persistUser(updatedUser);
+      } else {
+        throw new Error('Failed to get updated user data');
       }
     } catch (error) {
+      console.error('AuthContext: Profile update failed:', error);
       const errorMessage = error instanceof Error ? error.message : 'An error occurred updating profile';
       setError(errorMessage);
       throw new Error(errorMessage);

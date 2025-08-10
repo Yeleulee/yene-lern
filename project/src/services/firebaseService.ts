@@ -44,6 +44,40 @@ setPersistence(auth, browserLocalPersistence)
     console.error("Error setting auth persistence:", error);
   });
 
+// Ensure a parent user document exists. Some Firestore rules require it
+async function ensureUserDocument(user: User | null): Promise<User | null> {
+  try {
+    if (!user) return null;
+    const userRef = doc(db, 'users', user.uid);
+    const existing = await getDoc(userRef);
+    
+    if (!existing.exists()) {
+      const userData = {
+        uid: user.uid,
+        email: user.email || '',
+        displayName: user.displayName || (user.email ? user.email.split('@')[0] : ''),
+        photoURL: user.photoURL || null,
+        learningPreferences: [],
+        createdAt: serverTimestamp(),
+        lastActive: serverTimestamp(),
+      };
+      await setDoc(userRef, userData);
+      return { ...user, learningPreferences: [] };
+    } else {
+      // Touch lastActive and get the complete user data
+      await updateDoc(userRef, { lastActive: serverTimestamp() });
+      const userData = existing.data();
+      return {
+        ...user,
+        learningPreferences: userData.learningPreferences || []
+      };
+    }
+  } catch (e) {
+    console.error('ensureUserDocument failed:', e);
+    return user;
+  }
+}
+
 // Helper function to ensure auth persistence is properly set
 // This addresses edge cases where the persistence might not be applied correctly
 export const ensureAuthPersistence = async () => {
@@ -61,16 +95,19 @@ export const ensureAuthPersistence = async () => {
 // Listen for auth state changes
 export const initAuthStateListener = (callback: (user: User | null) => void) => {
   console.log("Setting up Firebase auth state listener");
-  return onAuthStateChanged(auth, (firebaseUser) => {
+  return onAuthStateChanged(auth, async (firebaseUser) => {
     if (firebaseUser) {
       console.log("Auth state changed: User logged in", firebaseUser.uid);
-      const user: User = {
+      const baseUser: User = {
         uid: firebaseUser.uid,
         email: firebaseUser.email || '',
         displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || '',
         photoURL: firebaseUser.photoURL || undefined
       };
-      callback(user);
+      
+      // Ensure user document exists and get complete profile data
+      const completeUser = await ensureUserDocument(baseUser);
+      callback(completeUser);
     } else {
       console.log("Auth state changed: No user");
       callback(null);
@@ -85,12 +122,14 @@ export async function signIn(email: string, password: string): Promise<User | nu
     await ensureAuthPersistence();
     
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
-    return {
+    const baseUser: User = {
       uid: userCredential.user.uid,
       email: userCredential.user.email || '',
       displayName: userCredential.user.displayName || email.split('@')[0],
       photoURL: userCredential.user.photoURL || undefined
     };
+    const completeUser = await ensureUserDocument(baseUser);
+    return completeUser;
   } catch (error: any) {
     // Enhanced error logging for debugging
     console.error('Error signing in:', error.code, error.message);
@@ -104,12 +143,14 @@ export async function signUp(email: string, password: string): Promise<User | nu
     await ensureAuthPersistence();
     
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    return {
+    const baseUser: User = {
       uid: userCredential.user.uid,
       email: userCredential.user.email || '',
       displayName: userCredential.user.displayName || email.split('@')[0],
       photoURL: userCredential.user.photoURL || undefined
     };
+    const completeUser = await ensureUserDocument(baseUser);
+    return completeUser;
   } catch (error: any) {
     console.error('Error signing up:', error.code, error.message);
     throw new Error(error.message || 'Failed to register');
@@ -136,12 +177,14 @@ export async function signInWithGoogle(): Promise<User | null> {
     try {
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
-      return {
+      const baseUser: User = {
         uid: user.uid,
         email: user.email || '',
         displayName: user.displayName || user.email?.split('@')[0] || '',
         photoURL: user.photoURL || undefined
       };
+      const completeUser = await ensureUserDocument(baseUser);
+      return completeUser;
     } catch (popupError: any) {
       // If popup is blocked or fails, log detailed error for debugging
       console.error('Popup sign-in failed:', popupError.code, popupError.message);
@@ -330,6 +373,8 @@ export async function saveVideo(userId: string, video: UserVideo): Promise<void>
     }
 
     console.log('Saving video:', userId, video);
+    // Ensure parent user document exists to satisfy typical Firestore rules
+    await ensureUserDocument({ uid: userId, email: '', displayName: '', photoURL: undefined } as User);
     
     // Create a reference to the user's videos collection
     const videoDocRef = doc(db, `users/${userId}/videos/${video.id}`);
@@ -391,6 +436,8 @@ export async function updateUserProfile(userProfile: Partial<User>): Promise<Use
     if (!currentUser) {
       throw new Error('No authenticated user found');
     }
+
+    console.log('Updating user profile:', userProfile);
     
     // Handle profile picture update
     let photoURL = userProfile.photoURL;
@@ -423,13 +470,48 @@ export async function updateUserProfile(userProfile: Partial<User>): Promise<Use
       photoURL: photoURL !== undefined ? photoURL : currentUser.photoURL
     });
     
+    // Force refresh the user object to get updated displayName
+    await currentUser.reload();
+    
+    // Also update the user document in Firestore with additional profile data
+    const userDocRef = doc(db, 'users', currentUser.uid);
+    const updateData = {
+      displayName: userProfile.displayName || currentUser.displayName,
+      photoURL: photoURL !== undefined ? photoURL : currentUser.photoURL,
+      learningPreferences: userProfile.learningPreferences || [],
+      lastUpdated: serverTimestamp()
+    };
+    
+    console.log('Updating Firestore user document:', updateData);
+    
+    try {
+      await updateDoc(userDocRef, updateData);
+    } catch (error: any) {
+      // If document doesn't exist, create it
+      if (error.code === 'not-found') {
+        console.log('User document not found, creating new one');
+        await setDoc(userDocRef, {
+          uid: currentUser.uid,
+          email: currentUser.email || '',
+          ...updateData,
+          createdAt: serverTimestamp()
+        });
+      } else {
+        throw error;
+      }
+    }
+    
     // Return the updated user object
-    return {
+    const updatedUser = {
       uid: currentUser.uid,
       email: currentUser.email || '',
       displayName: currentUser.displayName || currentUser.email?.split('@')[0] || '',
-      photoURL: currentUser.photoURL || undefined
+      photoURL: currentUser.photoURL || undefined,
+      learningPreferences: userProfile.learningPreferences || []
     };
+    
+    console.log('Profile updated successfully:', updatedUser);
+    return updatedUser;
   } catch (error: any) {
     console.error('Error updating profile:', error.code, error.message);
     throw new Error(error.message || 'Failed to update profile');

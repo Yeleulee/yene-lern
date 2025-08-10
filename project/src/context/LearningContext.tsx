@@ -22,21 +22,34 @@ export function LearningProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      setUserVideos([]);
+      setError(null);
+      return;
+    }
+    
+    console.log('Setting up video subscription for user:', user.uid);
     setLoading(true);
+    setError(null);
+    
     const unsubscribe = subscribeToUserVideos(
       user.uid,
       (videos) => {
+        console.log('Received videos from subscription:', videos.length);
         setUserVideos(videos);
         setLoading(false);
+        setError(null);
       },
       (err) => {
-        console.error(err);
-        setError('Failed to subscribe to videos');
+        console.error('Video subscription error:', err);
+        setError('Failed to load your saved courses. Please try refreshing the page.');
         setLoading(false);
       }
     );
-    return () => unsubscribe();
+    return () => {
+      console.log('Cleaning up video subscription for user:', user.uid);
+      unsubscribe();
+    };
   }, [user]);
 
   const addVideo = async (video: Video) => {
@@ -46,23 +59,33 @@ export function LearningProvider({ children }: { children: ReactNode }) {
 
     try {
       setLoading(true);
+      setError(null);
+      
       const userVideo: UserVideo = {
         ...video,
         status: 'to-learn',
       };
 
-      // Optimistic UI: still use but subscription will reconcile
+      console.log('Adding video for user:', user.uid, 'video:', video.id);
+
+      // Optimistic UI: add immediately but subscription will reconcile
       const videoExists = userVideos.some(v => v.id === video.id);
-      if (!videoExists) setUserVideos((prev) => [...prev, userVideo]);
+      if (!videoExists) {
+        setUserVideos((prev) => [...prev, userVideo]);
+      }
 
       await saveVideo(user.uid, userVideo);
+      console.log('Video saved successfully:', video.id);
       
-      return Promise.resolve(); // Ensure we always return a resolved promise
+      return Promise.resolve();
     } catch (error) {
       console.error('Error adding video:', error);
-      setError(error instanceof Error ? error.message : 'Failed to add video');
-      // Don't throw the error upward - return resolved promise to prevent UI crashes
-      return Promise.resolve();
+      const errorMessage = error instanceof Error ? error.message : 'Failed to save video';
+      setError(errorMessage);
+      
+      // Remove from optimistic UI if save failed
+      setUserVideos((prev) => prev.filter(v => v.id !== video.id));
+      throw new Error(errorMessage);
     } finally {
       setLoading(false);
     }

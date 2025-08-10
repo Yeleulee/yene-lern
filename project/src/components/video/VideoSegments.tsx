@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Clock, Play, CheckCircle, ArrowRight } from 'lucide-react';
+import { Clock, Play, CheckCircle, ArrowRight, Timer } from 'lucide-react';
 
 interface Segment {
   id: string;
@@ -28,6 +28,8 @@ const VideoSegments: React.FC<VideoSegmentsProps> = ({
 }) => {
   const [segments, setSegments] = useState<Segment[]>([]);
   const [currentSegmentIndex, setCurrentSegmentIndex] = useState<number>(-1);
+  const [hoveredSegment, setHoveredSegment] = useState<string | null>(null);
+  const [animatingSegments, setAnimatingSegments] = useState<Set<string>>(new Set());
 
   // Parse timestamps from video description to create segments
   useEffect(() => {
@@ -156,7 +158,19 @@ const VideoSegments: React.FC<VideoSegmentsProps> = ({
   };
   
   // Handle segment click to jump to that part of the video
-  const handleSegmentClick = (startTime: number) => {
+  const handleSegmentClick = (startTime: number, segmentId?: string) => {
+    // Add animation effect if segmentId provided
+    if (segmentId) {
+      setAnimatingSegments(prev => new Set(prev).add(segmentId));
+      setTimeout(() => {
+        setAnimatingSegments(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(segmentId);
+          return newSet;
+        });
+      }, 600);
+    }
+    
     onSeek(startTime);
   };
   
@@ -190,65 +204,119 @@ const VideoSegments: React.FC<VideoSegmentsProps> = ({
         {segments.map((segment, index) => (
           <div 
             key={segment.id}
-            className={`flex items-start p-3 rounded-lg transition-colors ${
-              index === currentSegmentIndex 
-                ? 'bg-blue-50 border border-blue-100' 
-                : 'hover:bg-gray-50 border border-transparent'
-            }`}
+            className={`flex items-start p-4 rounded-xl border transition-all duration-500 hover:shadow-lg hover:scale-[1.02] ${
+              segment.completed 
+                ? 'bg-gradient-to-r from-green-50 to-green-100 border-green-200 hover:from-green-100 hover:to-green-150' 
+                : index === currentSegmentIndex
+                  ? 'bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200 hover:from-blue-100 hover:to-blue-150 shadow-md'
+                  : 'bg-white border-gray-200 hover:bg-gray-50 hover:border-gray-300'
+            } ${animatingSegments.has(segment.id) ? 'animate-pulse ring-2 ring-blue-300' : ''}`}
+            onMouseEnter={() => setHoveredSegment(segment.id)}
+            onMouseLeave={() => setHoveredSegment(null)}
           >
             {/* Left side: timestamp and completion status */}
             <div className="flex-shrink-0 flex flex-col items-center mr-3">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center border ${
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${
                 segment.completed 
-                  ? 'bg-green-100 border-green-200 text-green-600' 
+                  ? 'bg-green-500 border-green-600 text-white shadow-lg shadow-green-200' 
                   : index === currentSegmentIndex
-                    ? 'bg-blue-100 border-blue-200 text-blue-600'
-                    : 'bg-gray-100 border-gray-200 text-gray-500'
+                    ? 'bg-blue-500 border-blue-600 text-white shadow-lg shadow-blue-200 animate-pulse'
+                    : hoveredSegment === segment.id
+                      ? 'bg-gray-200 border-gray-300 text-gray-700 scale-110'
+                      : 'bg-gray-100 border-gray-200 text-gray-500'
               }`}>
                 {segment.completed ? (
-                  <CheckCircle size={16} />
+                  <CheckCircle size={18} className="animate-bounce" />
+                ) : index === currentSegmentIndex ? (
+                  <Timer size={18} className="animate-spin" />
                 ) : (
-                  <Clock size={16} />
+                  <Clock size={18} />
                 )}
               </div>
               {index < segments.length - 1 && (
-                <div className="w-0.5 h-4 bg-gray-200 mt-1"></div>
+                <div className={`w-1 h-6 mt-1 transition-all duration-300 ${
+                  segment.completed ? 'bg-green-300' : 'bg-gray-200'
+                }`}></div>
               )}
             </div>
             
             {/* Content section */}
             <div 
-              className="flex-1 cursor-pointer"
-              onClick={() => handleSegmentClick(segment.startTime)}
+              className="flex-1 cursor-pointer group"
+              onClick={() => handleSegmentClick(segment.startTime, segment.id)}
             >
               {/* Title and timestamp */}
-              <div className="flex justify-between mb-1">
-                <h4 className="text-sm font-medium">{segment.title}</h4>
-                <span className="text-xs text-gray-500">{formatTime(segment.startTime)}</span>
+              <div className="flex justify-between items-start mb-2">
+                <h4 className={`text-sm font-semibold transition-colors duration-200 ${
+                  segment.completed 
+                    ? 'text-green-700' 
+                    : index === currentSegmentIndex
+                      ? 'text-blue-700'
+                      : 'text-gray-700 group-hover:text-gray-900'
+                }`}>
+                  {segment.title}
+                </h4>
+                <div className="flex items-center gap-2">
+                  <span className={`text-xs px-2 py-1 rounded-full font-medium transition-colors duration-200 ${
+                    segment.completed 
+                      ? 'bg-green-100 text-green-700' 
+                      : index === currentSegmentIndex
+                        ? 'bg-blue-100 text-blue-700'
+                        : 'bg-gray-100 text-gray-600'
+                  }`}>
+                    {formatTime(segment.startTime)}
+                  </span>
+                  {hoveredSegment === segment.id && (
+                    <ArrowRight size={14} className="text-blue-500 animate-pulse" />
+                  )}
+                </div>
               </div>
               
               {/* Progress bar */}
-              <div className="w-full bg-gray-100 rounded-full h-1.5 mb-1">
+              <div className="w-full bg-gray-200 rounded-full h-2 mb-2 overflow-hidden">
                 <div 
-                  className={`h-1.5 rounded-full ${
-                    segment.completed ? 'bg-green-500' : 'bg-blue-500'
+                  className={`h-2 rounded-full transition-all duration-700 ease-out ${
+                    segment.completed 
+                      ? 'bg-gradient-to-r from-green-400 to-green-600' 
+                      : 'bg-gradient-to-r from-blue-400 to-blue-600'
                   }`} 
-                  style={{ width: `${calculateProgress(segment)}%` }}
+                  style={{ 
+                    width: `${calculateProgress(segment)}%`,
+                    transform: hoveredSegment === segment.id ? 'scaleY(1.2)' : 'scaleY(1)'
+                  }}
                 ></div>
               </div>
               
-              {/* Duration */}
-              <div className="text-xs text-gray-500">
-                Duration: {formatTime(segment.endTime - segment.startTime)}
+              {/* Duration and status */}
+              <div className="flex justify-between items-center">
+                <div className="text-xs text-gray-500 flex items-center gap-1">
+                  <Clock size={12} />
+                  <span>{formatTime(segment.endTime - segment.startTime)}</span>
+                </div>
+                {segment.completed && (
+                  <div className="text-xs text-green-600 font-medium animate-fade-in">
+                    ✓ Completed
+                  </div>
+                )}
               </div>
             </div>
             
             {/* Play button */}
             <button 
-              className="ml-2 flex-shrink-0 w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-700"
-              onClick={() => handleSegmentClick(segment.startTime)}
+              className={`flex-shrink-0 ml-3 p-3 rounded-full transition-all duration-300 hover:scale-110 active:scale-95 ${
+                segment.completed
+                  ? 'bg-green-500 hover:bg-green-600 shadow-lg shadow-green-200'
+                  : index === currentSegmentIndex
+                    ? 'bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-200'
+                    : 'bg-gray-500 hover:bg-blue-500 shadow-md'
+              } text-white group-hover:shadow-xl`}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleSegmentClick(segment.startTime, segment.id);
+              }}
+              aria-label={`Play ${segment.title}`}
             >
-              <Play size={14} />
+              <Play size={16} className={index === currentSegmentIndex ? 'animate-pulse' : ''} />
             </button>
           </div>
         ))}

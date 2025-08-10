@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { BookOpen, Clock, CheckCircle, Search, MessageCircle, X } from 'lucide-react';
 import { useLearning } from '../context/LearningContext';
@@ -11,26 +11,36 @@ import LearningChatInterface from '../components/ui/LearningChatInterface';
 
 const MyLearningPage: React.FC = () => {
   const { user } = useAuth();
-  const { userVideos, updateStatus, removeVideo } = useLearning();
+  const { userVideos, updateStatus, removeVideo, loading, error } = useLearning();
   const [filter, setFilter] = useState<'all' | 'to-learn' | 'in-progress' | 'completed'>('all');
   const [sortBy, setSortBy] = useState<'recommended' | 'title'>('recommended');
   const [showChat, setShowChat] = useState(false);
-  const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth < 1024 : true);
+  const [isMobile, setIsMobile] = useState(false);
 
   // Handle responsive design
   useEffect(() => {
-    const handleResize = () => {
+    // Initialize mobile state
+    const checkIsMobile = () => {
       setIsMobile(window.innerWidth < 1024);
+    };
+    
+    // Check on mount
+    checkIsMobile();
+    
+    const handleResize = () => {
+      const wasMobile = isMobile;
+      const nowMobile = window.innerWidth < 1024;
+      setIsMobile(nowMobile);
       
-      // Auto-close chat on mobile when resizing to mobile
-      if (window.innerWidth < 1024 && showChat) {
+      // Auto-close chat when switching to mobile
+      if (!wasMobile && nowMobile && showChat) {
         setShowChat(false);
       }
     };
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [showChat]);
+  }, [isMobile, showChat]);
 
   if (!user) {
     return (
@@ -49,32 +59,71 @@ const MyLearningPage: React.FC = () => {
     );
   }
 
-  const filteredVideos = (filter === 'all' 
-    ? userVideos 
-    : userVideos.filter(video => video.status === filter))
-    .slice();
+  const filteredVideos = useMemo(() => {
+    return filter === 'all' 
+      ? [...userVideos] 
+      : userVideos.filter(video => video.status === filter);
+  }, [userVideos, filter]);
 
   // Sort videos for a professional, helpful default order
-  const sortedVideos = filteredVideos.sort((a, b) => {
-    if (sortBy === 'title') {
+  const sortedVideos = useMemo(() => {
+    return [...filteredVideos].sort((a, b) => {
+      if (sortBy === 'title') {
+        return a.title.localeCompare(b.title);
+      }
+      // recommended: in-progress first, then to-learn, then completed
+      const order: Record<string, number> = { 'in-progress': 0, 'to-learn': 1, 'completed': 2 };
+      const aRank = order[a.status] ?? 3;
+      const bRank = order[b.status] ?? 3;
+      if (aRank !== bRank) return aRank - bRank;
       return a.title.localeCompare(b.title);
-    }
-    // recommended: in-progress first, then to-learn, then completed
-    const order: Record<string, number> = { 'in-progress': 0, 'to-learn': 1, 'completed': 2 };
-    const aRank = order[a.status] ?? 3;
-    const bRank = order[b.status] ?? 3;
-    if (aRank !== bRank) return aRank - bRank;
-    return a.title.localeCompare(b.title);
-  });
+    });
+  }, [filteredVideos, sortBy]);
 
-  const statusCounts = {
+  const statusCounts = useMemo(() => ({
     'to-learn': userVideos.filter(v => v.status === 'to-learn').length,
     'in-progress': userVideos.filter(v => v.status === 'in-progress').length,
     'completed': userVideos.filter(v => v.status === 'completed').length,
-  };
+  }), [userVideos]);
 
   // On mobile, show either chat or content
   const showMobileChat = isMobile && showChat;
+
+  // Loading state
+  if (loading && userVideos.length === 0) {
+    return (
+      <div className="min-h-screen bg-white -mt-20 pt-20">
+        <div className="container mx-auto px-4 py-16">
+          <div className="max-w-4xl mx-auto text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading your learning progress...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="min-h-screen bg-white -mt-20 pt-20">
+        <div className="container mx-auto px-4 py-16">
+          <div className="max-w-4xl mx-auto text-center">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+              <h3 className="text-lg font-medium text-red-800 mb-2">Error Loading Learning Data</h3>
+              <p className="text-red-600 mb-4">{error}</p>
+              <button 
+                onClick={() => window.location.reload()} 
+                className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Retry
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white -mt-20 pt-20">
