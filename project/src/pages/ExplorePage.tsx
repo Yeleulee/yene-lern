@@ -218,9 +218,9 @@ const ExplorePage: React.FC = () => {
       <div className="relative bg-white py-20 overflow-hidden -mt-20 pt-20">
         {/* Subtle Background */}
         <div className="absolute inset-0">
-          <div className="absolute inset-0 bg-gradient-to-br from-gray-50/50 to-blue-50/30" />
-          <div className="absolute top-1/3 left-1/4 w-32 h-32 bg-blue-500/5 rounded-full blur-2xl" />
-          <div className="absolute bottom-1/3 right-1/4 w-24 h-24 bg-purple-500/5 rounded-full blur-xl" />
+          <div className="absolute inset-0 bg-gradient-to-br from-gray-50/50 to-gray-100/30" />
+          <div className="absolute top-1/3 left-1/4 w-32 h-32 bg-gray-400/10 rounded-full blur-2xl" />
+          <div className="absolute bottom-1/3 right-1/4 w-24 h-24 bg-gray-400/10 rounded-full blur-xl" />
         </div>
         
         <div className="container mx-auto px-4 relative z-10">
@@ -540,7 +540,7 @@ const ExplorePage: React.FC = () => {
       ) : filteredAndSortedResults.length > 0 ? (
             <div className="mt-8 animate-fade-in">
               <h2 className="text-2xl font-bold mb-6 text-gray-800 flex items-center">
-                <GraduationCap className="mr-2 text-blue-600" />
+                <GraduationCap className="mr-2 text-gray-700" />
                 Results for "{searchQuery}"
           </h2>
               <div className="flex justify-center">
@@ -578,8 +578,8 @@ const ExplorePage: React.FC = () => {
         </div>
       ) : searchQuery ? (
             <div className="text-center py-16 rounded-xl bg-white shadow-sm border border-gray-100 mt-8 animate-fade-in">
-          <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
-            <SearchIcon size={32} className="text-gray-400" />
+              <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
+            <SearchIcon size={32} className="text-gray-500" />
           </div>
           <h3 className="text-xl font-medium mb-2">No courses found</h3>
               <p className="text-gray-600 max-w-md mx-auto">
@@ -588,7 +588,7 @@ const ExplorePage: React.FC = () => {
               <div className="mt-6">
                 <button
                   onClick={() => setSearchQuery('')}
-                  className="px-5 py-2 bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200 transition-colors"
+                  className="px-5 py-2 bg-gray-100 text-gray-700 rounded-full hover:bg-gray-200 transition-colors"
                 >
                   Browse popular topics
                 </button>

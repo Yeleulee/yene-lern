@@ -95,7 +95,7 @@ const MyLearningPage: React.FC = () => {
       <div className="min-h-screen bg-white -mt-20 pt-20">
         <div className="container mx-auto px-4 py-16">
           <div className="max-w-4xl mx-auto text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-700 mx-auto mb-4"></div>
             <p className="text-gray-600">Loading your learning progress...</p>
           </div>
         </div>
@@ -260,8 +260,8 @@ const MyLearningPage: React.FC = () => {
 
               {sortedVideos.length === 0 ? (
                 <div className="text-center py-16 animate-fade-in">
-                  <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center">
-                    <Search size={40} className="text-blue-600" />
+                  <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                    <Search size={40} className="text-gray-700" />
                   </div>
                   <h3 className="text-2xl font-bold mb-4 text-gray-800">No videos found</h3>
                   <p className="text-gray-600 mb-8 max-w-md mx-auto text-lg">

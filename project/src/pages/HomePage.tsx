@@ -72,15 +72,15 @@ const HomePage: React.FC = () => {
         {/* Subtle Background Elements */}
         <div className="absolute inset-0">
           {/* Minimal gradient overlay */}
-          <div className="absolute inset-0 bg-gradient-to-br from-gray-50/50 to-blue-50/30" />
+          <div className="absolute inset-0 bg-gradient-to-br from-gray-50/50 to-gray-100/30" />
           
           {/* Subtle floating elements */}
-          <div className="absolute top-1/3 left-1/4 w-64 h-64 bg-blue-500/5 rounded-full blur-3xl animate-pulse" />
-          <div className="absolute bottom-1/3 right-1/4 w-48 h-48 bg-purple-500/5 rounded-full blur-2xl animate-pulse" style={{animationDelay: '2s'}} />
+          <div className="absolute top-1/3 left-1/4 w-64 h-64 bg-gray-400/10 rounded-full blur-3xl animate-pulse" />
+          <div className="absolute bottom-1/3 right-1/4 w-48 h-48 bg-gray-400/10 rounded-full blur-2xl animate-pulse" style={{animationDelay: '2s'}} />
           
           {/* Clean geometric shapes */}
-          <div className="absolute top-20 right-20 w-2 h-2 bg-blue-300 rounded-full animate-float" />
-          <div className="absolute bottom-32 left-16 w-1 h-1 bg-purple-300 rounded-full animate-float" style={{animationDelay: '1s'}} />
+          <div className="absolute top-20 right-20 w-2 h-2 bg-gray-300 rounded-full animate-float" />
+          <div className="absolute bottom-32 left-16 w-1 h-1 bg-gray-300 rounded-full animate-float" style={{animationDelay: '1s'}} />
           <div className="absolute top-1/2 left-1/6 w-1.5 h-1.5 bg-gray-300 rounded-full animate-float" style={{animationDelay: '3s'}} />
         </div>
         
@@ -140,7 +140,7 @@ const HomePage: React.FC = () => {
                   <Link to="/signup">
                     <Button className="group w-full sm:w-auto bg-black text-white hover:bg-gray-800 px-8 py-4 text-base font-medium shadow-md hover:shadow-lg transition-all duration-300 hover:scale-105 rounded-xl">
                       <ArrowRight size={18} className="mr-2 group-hover:translate-x-1 transition-transform" />
-                      Get Template
+                      Get Started
                     </Button>
                   </Link>
                   <Link to="/explore">
@@ -360,7 +360,7 @@ const HomePage: React.FC = () => {
           {/* CTA */}
           <div className="text-center mt-16">
             <Link to="/explore">
-              <Button className="bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 px-8 py-4 text-lg font-semibold shadow-lg hover:shadow-xl transition-all">
+              <Button className="bg-gradient-to-r from-gray-900 to-gray-700 text-white hover:from-black hover:to-gray-800 px-8 py-4 text-lg font-semibold shadow-lg hover:shadow-xl transition-all">
                 <ArrowRight size={20} className="mr-2" />
                 Explore All Features
               </Button>
@@ -690,17 +690,17 @@ const HomePage: React.FC = () => {
             </div>
             
             {/* Trust indicators */}
-            <div className="mt-12 flex flex-wrap justify-center items-center gap-8 text-sm text-gray-500">
+              <div className="mt-12 flex flex-wrap justify-center items-center gap-8 text-sm text-gray-500">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                 <span>Free to start</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
                 <span>No credit card required</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                  <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
                 <span>Cancel anytime</span>
               </div>
             </div>

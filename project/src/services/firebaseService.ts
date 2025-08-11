@@ -522,33 +522,31 @@ export async function updateUserProfile(userProfile: Partial<User>): Promise<Use
 export async function getLeaderboard(limit: number = 10): Promise<any[]> {
   try {
     const userStatsRef = collection(db, 'userStats');
-    const leaderboardQuery = query(
-      userStatsRef, 
+    const leaderboardQueryRef = query(
+      userStatsRef,
       orderBy('completedVideos', 'desc'),
       limit(limit)
     );
-    
-    const snapshot = await getDocs(leaderboardQuery);
+    const snapshot = await getDocs(leaderboardQueryRef);
+
     const leaderboardData: any[] = [];
-    
-    for (const doc of snapshot.docs) {
-      const userData = doc.data();
-      
-      // Get user profile data
-      const userProfileRef = await getDoc(doc.ref.parent.parent);
-      const profileData = userProfileRef.exists() ? userProfileRef.data() : {};
-      
+    for (const statsDoc of snapshot.docs) {
+      const stats = statsDoc.data();
+      // Load matching user profile from users collection
+      const profileRef = doc(db, 'users', statsDoc.id);
+      const profileSnap = await getDoc(profileRef);
+      const profile = profileSnap.exists() ? profileSnap.data() : {} as any;
+
       leaderboardData.push({
-        uid: doc.id,
-        displayName: profileData.displayName || `User-${doc.id.substring(0, 5)}`,
-        photoURL: profileData.photoURL,
-        completedVideos: userData.completedVideos || 0,
-        learningStreak: userData.learningStreak || 0,
-        lastActive: userData.lastActive ? new Date(userData.lastActive.seconds * 1000).toLocaleDateString() : 'Never',
-        totalLearningTime: userData.totalLearningTime || 0
+        uid: statsDoc.id,
+        displayName: profile.displayName || `User-${statsDoc.id.substring(0, 5)}`,
+        photoURL: profile.photoURL,
+        completedVideos: stats.completedVideos || 0,
+        learningStreak: stats.learningStreak || 0,
+        lastActive: stats.lastActive ? new Date(stats.lastActive.seconds * 1000).toLocaleDateString() : 'Never',
+        totalLearningTime: stats.totalLearningTime || 0
       });
     }
-    
     return leaderboardData;
   } catch (error) {
     console.error('Error fetching leaderboard:', error);

@@ -16,6 +16,7 @@ import { getVideoDetails } from '../services/youtubeService';
 import { generateVideoSummary } from '../services/geminiService';
 import { Video, VideoSummary } from '../types';
 import { getCourseSectionByVideoId, getCourseById } from '../data/mockCourseData';
+import { trackVideoProgress } from '../services/firebaseService';
 
 const VideoPage: React.FC = () => {
   const { videoId = '' } = useParams<{ videoId: string }>();
@@ -37,6 +38,8 @@ const VideoPage: React.FC = () => {
   const [videoDuration, setVideoDuration] = useState(0);
   const playerRef = useRef<any>(null);
   const [videoSegments, setVideoSegments] = useState<{ startTime: number; title: string }[]>([]);
+  const lastReportTimeRef = useRef<number>(0);
+  const lastReportedAtRef = useRef<number>(0);
   
   const userVideo = user ? getVideoById(videoId) : undefined;
   const isVideoSaved = !!userVideo;
@@ -188,9 +191,38 @@ const VideoPage: React.FC = () => {
   };
 
   // Add a function to handle time updates
-  const handleTimeUpdate = (time: number, duration: number) => {
+  const handleTimeUpdate = async (time: number, duration: number) => {
     setCurrentTime(time);
     setVideoDuration(duration);
+
+    if (!user || !videoId || !duration) return;
+
+    // Compute progress percent safely
+    const progressPercent = Math.min(100, Math.max(0, (time / duration) * 100));
+
+    // Throttle writes to at most once every 15s, or always when nearing completion
+    const now = Date.now();
+    const timeSinceLast = now - (lastReportedAtRef.current || 0);
+    const isCompletion = progressPercent >= 90;
+
+    // Estimate watched delta in seconds (guard against seeks backwards)
+    const prevTime = lastReportTimeRef.current || 0;
+    const deltaSeconds = Math.max(0, Math.round(time - prevTime));
+
+    if (deltaSeconds > 0 && (timeSinceLast > 15000 || isCompletion)) {
+      try {
+        await trackVideoProgress(
+          user.uid,
+          videoId,
+          Math.round(progressPercent),
+          deltaSeconds
+        );
+        lastReportTimeRef.current = time;
+        lastReportedAtRef.current = now;
+      } catch (e) {
+        // Non-fatal; ignore to keep playback smooth
+      }
+    }
   };
   
   // Add a function to handle seeking - improved with better targeting
