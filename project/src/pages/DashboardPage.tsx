@@ -23,11 +23,11 @@ const DashboardPage: React.FC = () => {
   return (
     <div className="container mx-auto px-4 py-8">
       {/* Welcome Section */}
-      <div className="bg-gradient-to-br from-blue-600 to-purple-700 rounded-2xl p-8 mb-8 text-white">
+      <div className="bg-gradient-to-br from-gray-900 to-gray-700 rounded-2xl p-8 mb-8 text-white">
         <h1 className="text-3xl font-bold mb-2">
           Welcome back, {user?.displayName || 'Learner'}! 👋
         </h1>
-        <p className="text-blue-100 mb-6">
+        <p className="text-gray-200 mb-6">
           Track your progress and continue your learning journey
         </p>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

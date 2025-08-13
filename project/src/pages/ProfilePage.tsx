@@ -247,7 +247,7 @@ const ProfilePage: React.FC = () => {
   return (
     <div className="container mx-auto px-4 py-8">
       {/* Profile Header */}
-      <div className="bg-gradient-to-br from-blue-600 to-purple-700 rounded-2xl p-8 mb-8 text-white">
+      <div className="bg-gradient-to-br from-gray-900 to-gray-700 rounded-2xl p-8 mb-8 text-white">
         <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
           <div className="relative group" ref={profileMenuRef}>
             <div 
@@ -326,7 +326,7 @@ const ProfilePage: React.FC = () => {
           
           <div className="flex-1 text-center md:text-left">
             <h1 className="text-3xl font-bold mb-2">{user.displayName || user.email}</h1>
-            <p className="text-blue-100 mb-4">Member since {accountCreationDate.toLocaleDateString()}</p>
+            <p className="text-gray-200 mb-4">Member since {accountCreationDate.toLocaleDateString()}</p>
             
             <div className="flex flex-wrap justify-center md:justify-start gap-3 mt-4">
               <div className="bg-white/10 rounded-lg px-4 py-2 backdrop-blur-sm">
@@ -366,19 +366,19 @@ const ProfilePage: React.FC = () => {
       {/* Tab Navigation */}
       <div className="flex border-b border-gray-200 mb-6">
         <button
-          className={`px-4 py-2 font-medium ${activeTab === 'profile' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-600'}`}
+          className={`px-4 py-2 font-medium ${activeTab === 'profile' ? 'text-gray-900 border-b-2 border-gray-900' : 'text-gray-600'}`}
           onClick={() => setActiveTab('profile')}
         >
           Profile
         </button>
         <button
-          className={`px-4 py-2 font-medium ${activeTab === 'stats' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-600'}`}
+          className={`px-4 py-2 font-medium ${activeTab === 'stats' ? 'text-gray-900 border-b-2 border-gray-900' : 'text-gray-600'}`}
           onClick={() => setActiveTab('stats')}
         >
           Learning Stats
         </button>
         <button
-          className={`px-4 py-2 font-medium ${activeTab === 'leaderboard' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-600'}`}
+          className={`px-4 py-2 font-medium ${activeTab === 'leaderboard' ? 'text-gray-900 border-b-2 border-gray-900' : 'text-gray-600'}`}
           onClick={() => setActiveTab('leaderboard')}
         >
           Leaderboard

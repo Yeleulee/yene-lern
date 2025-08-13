@@ -117,7 +117,7 @@ const GeminiTestPage: React.FC = () => {
           ? 'text-green-600' 
           : status.includes('Error') 
             ? 'text-red-600' 
-            : 'text-blue-600'}>
+            : 'text-gray-900'}>
           {status}
         </p>
       </div>
@@ -172,7 +172,7 @@ const GeminiTestPage: React.FC = () => {
           className={`px-4 py-2 rounded ${
             loading || !apiKey.trim()
               ? 'bg-gray-400 cursor-not-allowed'
-              : 'bg-blue-600 hover:bg-blue-700 text-white'
+              : 'bg-gray-900 hover:bg-gray-800 text-white'
           }`}
         >
           {loading ? 'Testing...' : 'Test Gemini API'}
@@ -205,9 +205,9 @@ const GeminiTestPage: React.FC = () => {
         </div>
       )}
       
-      <div className="mt-6">
+        <div className="mt-6">
         <h2 className="font-semibold mb-2">API Troubleshooting Guide</h2>
-        <div className="bg-blue-50 p-4 rounded text-blue-800 text-sm">
+        <div className="bg-gray-100 p-4 rounded text-gray-800 text-sm">
           <p className="font-medium mb-2">Common Gemini API Issues:</p>
           <ul className="list-disc pl-5 space-y-1">
             <li>Invalid API key format (must start with "AIza")</li>

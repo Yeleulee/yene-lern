@@ -96,7 +96,7 @@ const Header: React.FC = () => {
           {/* Navigation buttons and logo for course player */}
           <div className="flex items-center space-x-3">
             <Link to="/" className="flex items-center space-x-2">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-md transform hover:scale-105 transition-transform">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-gray-900 to-gray-700 flex items-center justify-center shadow-md transform hover:scale-105 transition-transform">
                 <span className="text-white font-bold text-sm">Y</span>
               </div>
             </Link>
@@ -178,7 +178,11 @@ const Header: React.FC = () => {
 
   // Clean light header - ORB AI inspired
   return (
-    <header className="sticky top-0 z-20 bg-white border-b border-gray-100 py-4 transition-all duration-300">
+    <header className={`sticky top-0 z-20 border-b transition-all duration-300 ${
+      isScrolled
+        ? 'bg-white/80 backdrop-blur-md border-gray-200 shadow-sm py-2'
+        : 'bg-white border-gray-100 py-4'
+    }`}>
       <div className="container mx-auto px-4 flex items-center justify-between">
         {/* Clean Logo */}
         <Link to="/" className="flex items-center space-x-3 group">
@@ -194,21 +198,24 @@ const Header: React.FC = () => {
         <nav className="hidden md:flex items-center space-x-8">
           <Link 
             to="/" 
-            className="text-gray-700 hover:text-black transition-colors font-medium"
+            className="relative group text-gray-700 hover:text-black transition-all duration-200 font-medium hover:-translate-y-0.5"
           >
             Home
+            <span className={`pointer-events-none absolute -bottom-1 left-0 h-0.5 w-full origin-left bg-black transition-transform duration-300 ${isActive('/') ? 'scale-x-100' : 'scale-x-0'} group-hover:scale-x-100`} />
           </Link>
           <Link 
             to="/explore" 
-            className="text-gray-700 hover:text-black transition-colors font-medium"
+            className="relative group text-gray-700 hover:text-black transition-all duration-200 font-medium hover:-translate-y-0.5"
           >
             Explore
+            <span className={`pointer-events-none absolute -bottom-1 left-0 h-0.5 w-full origin-left bg-black transition-transform duration-300 ${isActive('/explore') ? 'scale-x-100' : 'scale-x-0'} group-hover:scale-x-100`} />
           </Link>
           <Link 
             to="/my-learning" 
-            className="text-gray-700 hover:text-black transition-colors font-medium"
+            className="relative group text-gray-700 hover:text-black transition-all duration-200 font-medium hover:-translate-y-0.5"
           >
             My Learning
+            <span className={`pointer-events-none absolute -bottom-1 left-0 h-0.5 w-full origin-left bg-black transition-transform duration-300 ${isActive('/my-learning') ? 'scale-x-100' : 'scale-x-0'} group-hover:scale-x-100`} />
           </Link>
         </nav>
 
@@ -249,7 +256,7 @@ const Header: React.FC = () => {
                           className="h-10 w-10 rounded-full object-cover ring-2 ring-gray-200"
                         />
                       ) : (
-                        <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold">
+                    <div className="h-10 w-10 rounded-full bg-gradient-to-br from-gray-900 to-gray-700 flex items-center justify-center text-white font-bold">
                           {user.displayName?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || 'U'}
                         </div>
                       )}
@@ -332,7 +339,7 @@ const Header: React.FC = () => {
       {/* Mobile Menu Backdrop */}
       {isMenuOpen && (
         <div 
-          className="md:hidden fixed inset-0 bg-black bg-opacity-20 z-40"
+          className="md:hidden fixed inset-0 bg-black bg-opacity-20 z-40 transition-opacity duration-200"
           onClick={() => setIsMenuOpen(false)}
         />
       )}
@@ -343,7 +350,7 @@ const Header: React.FC = () => {
           <div className="max-h-[calc(100vh-73px)] overflow-y-auto">
             {/* User Profile Section for Mobile */}
             {user && (
-              <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-4 border-b border-gray-100">
+              <div className="bg-gradient-to-r from-gray-50 to-gray-100 p-4 border-b border-gray-100">
                 <div className="flex items-center space-x-3">
                   <div className="relative">
                     {user.photoURL ? (
@@ -353,7 +360,7 @@ const Header: React.FC = () => {
                         className="h-12 w-12 rounded-full object-cover ring-2 ring-white shadow-md"
                       />
                     ) : (
-                      <div className="h-12 w-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold shadow-md">
+                      <div className="h-12 w-12 rounded-full bg-gradient-to-br from-gray-900 to-gray-700 flex items-center justify-center text-white font-bold shadow-md">
                         {user.displayName?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || 'U'}
                       </div>
                     )}
@@ -380,57 +387,57 @@ const Header: React.FC = () => {
                   to="/"
                   className={`flex items-center space-x-3 px-3 py-3 rounded-xl transition-all duration-300 active:scale-95 ${
                     isActive('/') 
-                      ? 'bg-blue-50 text-blue-700 shadow-sm' 
+                      ? 'bg-gray-100 text-gray-900 shadow-sm' 
                       : 'text-gray-700 hover:bg-gray-50 active:bg-gray-100'
                   }`}
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  <div className={`p-2 rounded-lg ${isActive('/') ? 'bg-blue-100' : 'bg-gray-100'}`}>
-                    <Home size={18} className={isActive('/') ? 'text-blue-600' : 'text-gray-600'} />
+                  <div className={`p-2 rounded-lg ${isActive('/') ? 'bg-gray-200' : 'bg-gray-100'}`}>
+                    <Home size={18} className={isActive('/') ? 'text-gray-900' : 'text-gray-600'} />
                   </div>
                   <div className="flex-1">
                     <span className="font-medium">Home</span>
                     <p className="text-xs text-gray-500">Discover new content</p>
                   </div>
-                  {isActive('/') && <div className="w-2 h-2 bg-blue-500 rounded-full"></div>}
+                  {isActive('/') && <div className="w-2 h-2 bg-gray-900 rounded-full"></div>}
                 </Link>
 
                 <Link
                   to="/explore"
                   className={`flex items-center space-x-3 px-3 py-3 rounded-xl transition-all duration-300 active:scale-95 ${
                     isActive('/explore') 
-                      ? 'bg-blue-50 text-blue-700 shadow-sm' 
+                      ? 'bg-gray-100 text-gray-900 shadow-sm' 
                       : 'text-gray-700 hover:bg-gray-50 active:bg-gray-100'
                   }`}
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  <div className={`p-2 rounded-lg ${isActive('/explore') ? 'bg-blue-100' : 'bg-gray-100'}`}>
-                    <CompassIcon size={18} className={isActive('/explore') ? 'text-blue-600' : 'text-gray-600'} />
+                  <div className={`p-2 rounded-lg ${isActive('/explore') ? 'bg-gray-200' : 'bg-gray-100'}`}>
+                    <CompassIcon size={18} className={isActive('/explore') ? 'text-gray-900' : 'text-gray-600'} />
                   </div>
                   <div className="flex-1">
                     <span className="font-medium">Explore</span>
                     <p className="text-xs text-gray-500">Browse all courses</p>
                   </div>
-                  {isActive('/explore') && <div className="w-2 h-2 bg-blue-500 rounded-full"></div>}
+                  {isActive('/explore') && <div className="w-2 h-2 bg-gray-900 rounded-full"></div>}
                 </Link>
 
                 <Link
                   to="/my-learning"
                   className={`flex items-center space-x-3 px-3 py-3 rounded-xl transition-all duration-300 active:scale-95 ${
                     isActive('/my-learning') 
-                      ? 'bg-blue-50 text-blue-700 shadow-sm' 
+                      ? 'bg-gray-100 text-gray-900 shadow-sm' 
                       : 'text-gray-700 hover:bg-gray-50 active:bg-gray-100'
                   }`}
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  <div className={`p-2 rounded-lg ${isActive('/my-learning') ? 'bg-blue-100' : 'bg-gray-100'}`}>
-                    <BookOpen size={18} className={isActive('/my-learning') ? 'text-blue-600' : 'text-gray-600'} />
+                  <div className={`p-2 rounded-lg ${isActive('/my-learning') ? 'bg-gray-200' : 'bg-gray-100'}`}>
+                    <BookOpen size={18} className={isActive('/my-learning') ? 'text-gray-900' : 'text-gray-600'} />
                   </div>
                   <div className="flex-1">
                     <span className="font-medium">My Learning</span>
                     <p className="text-xs text-gray-500">Track your progress</p>
                   </div>
-                  {isActive('/my-learning') && <div className="w-2 h-2 bg-blue-500 rounded-full"></div>}
+                  {isActive('/my-learning') && <div className="w-2 h-2 bg-gray-900 rounded-full"></div>}
                 </Link>
               </div>
 
@@ -443,13 +450,13 @@ const Header: React.FC = () => {
                       to="/profile"
                       className={`flex items-center space-x-3 px-3 py-3 rounded-xl transition-all duration-300 active:scale-95 ${
                         isActive('/profile') 
-                          ? 'bg-blue-50 text-blue-700 shadow-sm' 
+                        ? 'bg-gray-100 text-gray-900 shadow-sm' 
                           : 'text-gray-700 hover:bg-gray-50 active:bg-gray-100'
                       }`}
                       onClick={() => setIsMenuOpen(false)}
                     >
-                      <div className={`p-2 rounded-lg ${isActive('/profile') ? 'bg-blue-100' : 'bg-gray-100'}`}>
-                        <User size={18} className={isActive('/profile') ? 'text-blue-600' : 'text-gray-600'} />
+                      <div className={`p-2 rounded-lg ${isActive('/profile') ? 'bg-gray-200' : 'bg-gray-100'}`}>
+                        <User size={18} className={isActive('/profile') ? 'text-gray-900' : 'text-gray-600'} />
                       </div>
                       <div className="flex-1">
                         <span className="font-medium">Profile & Settings</span>
@@ -483,7 +490,7 @@ const Header: React.FC = () => {
                       </Button>
                     </Link>
                     <Link to="/signup" onClick={() => setIsMenuOpen(false)} className="block">
-                      <Button className="w-full py-3 text-sm font-medium bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 active:scale-95 transition-all">
+                      <Button className="w-full py-3 text-sm font-medium bg-gradient-to-r from-gray-900 to-gray-700 hover:from-black hover:to-gray-800 active:scale-95 transition-all">
                         Get Started Free
                       </Button>
                     </Link>

@@ -13,7 +13,7 @@ import {
   onAuthStateChanged,
   AuthErrorCodes
 } from 'firebase/auth';
-import { getFirestore, collection, doc, getDoc, getDocs, setDoc, updateDoc, query, where, orderBy, limit, increment, Timestamp, serverTimestamp, deleteDoc, onSnapshot } from 'firebase/firestore';
+import { getFirestore, collection, doc, getDoc, getDocs, setDoc, updateDoc, query, where, orderBy, limit, increment, Timestamp, serverTimestamp, deleteDoc, onSnapshot, enableIndexedDbPersistence } from 'firebase/firestore';
 import { getStorage, ref, uploadString, getDownloadURL, deleteObject } from 'firebase/storage';
 
 // Firebase configuration with hardcoded values for deployment
@@ -34,6 +34,17 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
 const googleProvider = new GoogleAuthProvider();
+
+// Enable IndexedDB persistence to speed up subsequent loads with local cache
+// This improves perceived performance by serving cached data instantly while syncing in the background
+try {
+  enableIndexedDbPersistence(db).catch((err) => {
+    // Ignore persistence failures (e.g., multiple tabs), app will still function
+    console.log('IndexedDB persistence not enabled:', err?.code || err);
+  });
+} catch (err) {
+  console.log('IndexedDB persistence setup error:', err);
+}
 
 // Set persistence to LOCAL (survive page refresh)
 setPersistence(auth, browserLocalPersistence)
@@ -423,8 +434,8 @@ export async function saveVideo(userId: string, video: UserVideo): Promise<void>
     return Promise.resolve(); // Explicitly resolve the promise
   } catch (error) {
     console.error('Error saving video:', error);
-    // Return a resolved promise to prevent UI from breaking
-    return Promise.resolve();
+    // Propagate the error so callers can roll back optimistic UI
+    throw error;
   }
 }
 
@@ -522,31 +533,33 @@ export async function updateUserProfile(userProfile: Partial<User>): Promise<Use
 export async function getLeaderboard(limit: number = 10): Promise<any[]> {
   try {
     const userStatsRef = collection(db, 'userStats');
-    const leaderboardQueryRef = query(
-      userStatsRef,
+    const leaderboardQuery = query(
+      userStatsRef, 
       orderBy('completedVideos', 'desc'),
       limit(limit)
     );
-    const snapshot = await getDocs(leaderboardQueryRef);
-
+    
+    const snapshot = await getDocs(leaderboardQuery);
     const leaderboardData: any[] = [];
-    for (const statsDoc of snapshot.docs) {
-      const stats = statsDoc.data();
-      // Load matching user profile from users collection
-      const profileRef = doc(db, 'users', statsDoc.id);
-      const profileSnap = await getDoc(profileRef);
-      const profile = profileSnap.exists() ? profileSnap.data() : {} as any;
-
+    
+    for (const doc of snapshot.docs) {
+      const userData = doc.data();
+      
+      // Get user profile data
+      const userProfileRef = await getDoc(doc.ref.parent.parent);
+      const profileData = userProfileRef.exists() ? userProfileRef.data() : {};
+      
       leaderboardData.push({
-        uid: statsDoc.id,
-        displayName: profile.displayName || `User-${statsDoc.id.substring(0, 5)}`,
-        photoURL: profile.photoURL,
-        completedVideos: stats.completedVideos || 0,
-        learningStreak: stats.learningStreak || 0,
-        lastActive: stats.lastActive ? new Date(stats.lastActive.seconds * 1000).toLocaleDateString() : 'Never',
-        totalLearningTime: stats.totalLearningTime || 0
+        uid: doc.id,
+        displayName: profileData.displayName || `User-${doc.id.substring(0, 5)}`,
+        photoURL: profileData.photoURL,
+        completedVideos: userData.completedVideos || 0,
+        learningStreak: userData.learningStreak || 0,
+        lastActive: userData.lastActive ? new Date(userData.lastActive.seconds * 1000).toLocaleDateString() : 'Never',
+        totalLearningTime: userData.totalLearningTime || 0
       });
     }
+    
     return leaderboardData;
   } catch (error) {
     console.error('Error fetching leaderboard:', error);

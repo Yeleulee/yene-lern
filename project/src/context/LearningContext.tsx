@@ -27,11 +27,25 @@ export function LearningProvider({ children }: { children: ReactNode }) {
       setError(null);
       return;
     }
-    
+
     console.log('Setting up video subscription for user:', user.uid);
-    setLoading(true);
     setError(null);
-    
+
+    // Seed from localStorage cache for instant first paint
+    try {
+      const cacheKey = `yl_user_videos_${user.uid}`;
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        const parsed = JSON.parse(cached) as UserVideo[];
+        if (Array.isArray(parsed) && parsed.length >= 0) {
+          setUserVideos(parsed);
+        }
+      }
+    } catch {}
+
+    // Mark loading only if we still have nothing to show
+    setLoading((prev) => userVideos.length === 0 ? true : prev);
+
     const unsubscribe = subscribeToUserVideos(
       user.uid,
       (videos) => {
@@ -39,6 +53,10 @@ export function LearningProvider({ children }: { children: ReactNode }) {
         setUserVideos(videos);
         setLoading(false);
         setError(null);
+        // Refresh cache
+        try {
+          localStorage.setItem(`yl_user_videos_${user.uid}`, JSON.stringify(videos));
+        } catch {}
       },
       (err) => {
         console.error('Video subscription error:', err);
@@ -58,7 +76,7 @@ export function LearningProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      setLoading(true);
+      // Avoid global loading flicker during add; let UI stay interactive
       setError(null);
       
       const userVideo: UserVideo = {
@@ -86,9 +104,7 @@ export function LearningProvider({ children }: { children: ReactNode }) {
       // Remove from optimistic UI if save failed
       setUserVideos((prev) => prev.filter(v => v.id !== video.id));
       throw new Error(errorMessage);
-    } finally {
-      setLoading(false);
-    }
+    } finally {}
   };
 
   const updateStatus = async (videoId: string, status: LearningStatus) => {
@@ -97,7 +113,7 @@ export function LearningProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      setLoading(true);
+      // Avoid global loading flicker during update; optimistic update below
       await updateVideoStatus(user.uid, videoId, status);
       
       setUserVideos((prev) =>
@@ -112,9 +128,7 @@ export function LearningProvider({ children }: { children: ReactNode }) {
       setError(error instanceof Error ? error.message : 'Failed to update video status');
       // Don't throw the error upward - return resolved promise to prevent UI crashes
       return Promise.resolve();
-    } finally {
-      setLoading(false);
-    }
+    } finally {}
   };
 
   const handleRemoveVideo = async (videoId: string) => {
@@ -123,7 +137,7 @@ export function LearningProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      setLoading(true);
+      // Avoid global loading flicker during remove; optimistic update below
       await removeVideo(user.uid, videoId);
       
       // Update state by removing the video
@@ -135,14 +149,33 @@ export function LearningProvider({ children }: { children: ReactNode }) {
       setError(error instanceof Error ? error.message : 'Failed to remove video');
       // Don't throw the error upward - return resolved promise to prevent UI crashes
       return Promise.resolve();
-    } finally {
-      setLoading(false);
-    }
+    } finally {}
   };
 
   const getVideoById = (videoId: string) => {
     return userVideos.find((video) => video.id === videoId);
   };
+
+  // After login, complete any pending save started before auth
+  useEffect(() => {
+    if (!user) return;
+    try {
+      const pending = sessionStorage.getItem('pending_save_video');
+      if (!pending) return;
+      const pendingVideo: Video = JSON.parse(pending);
+      const exists = userVideos.some((v) => v.id === pendingVideo.id);
+      if (exists) {
+        sessionStorage.removeItem('pending_save_video');
+        return;
+      }
+      // Use addVideo to persist and update UI
+      addVideo(pendingVideo)
+        .finally(() => {
+          sessionStorage.removeItem('pending_save_video');
+        });
+    } catch {}
+    // Only run on login and when list changes to avoid duplicates
+  }, [user, userVideos]);
 
   return (
     <LearningContext.Provider

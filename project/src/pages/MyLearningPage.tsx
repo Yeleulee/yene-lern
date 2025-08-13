@@ -222,7 +222,7 @@ const MyLearningPage: React.FC = () => {
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as 'recommended' | 'title')}
-              className="text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-gray-900 focus:border-gray-900"
               aria-label="Sort my learning"
             >
               <option value="recommended">Recommended</option>

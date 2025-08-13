@@ -228,7 +228,7 @@ const CourseDetail: React.FC = () => {
           <div className="flex flex-wrap gap-3">
             <Button 
               onClick={handleStartCourse} 
-              className="px-4 sm:px-6 py-2 bg-blue-600 hover:bg-blue-700 w-full sm:w-auto"
+              className="px-4 sm:px-6 py-2 bg-gray-900 hover:bg-gray-800 w-full sm:w-auto"
             >
               Start Learning
             </Button>
@@ -236,7 +236,7 @@ const CourseDetail: React.FC = () => {
               <Button 
                 variant="outline" 
                 onClick={handleSaveToCourse} 
-                className="px-4 sm:px-6 py-2 border-blue-600 text-blue-600 hover:bg-blue-50 w-full sm:w-auto"
+                className="px-4 sm:px-6 py-2 border-gray-900 text-gray-900 hover:bg-gray-100 w-full sm:w-auto"
               >
                 Save to My Learning
               </Button>
@@ -270,7 +270,7 @@ const CourseDetail: React.FC = () => {
                 <button 
                   className={`py-3 px-1 font-medium border-b-2 ${
                     activeTab === 'summary' 
-                      ? 'border-blue-600 text-blue-600' 
+                      ? 'border-gray-900 text-gray-900' 
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
                   onClick={() => setActiveTab('summary')}
@@ -281,7 +281,7 @@ const CourseDetail: React.FC = () => {
                 <button 
                   className={`py-3 px-1 font-medium border-b-2 ${
                     activeTab === 'about' 
-                      ? 'border-blue-600 text-blue-600' 
+                      ? 'border-gray-900 text-gray-900' 
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
                   onClick={() => setActiveTab('about')}
@@ -292,7 +292,7 @@ const CourseDetail: React.FC = () => {
                 <button 
                   className={`py-3 px-1 font-medium border-b-2 ${
                     activeTab === 'statistics' 
-                      ? 'border-blue-600 text-blue-600' 
+                      ? 'border-gray-900 text-gray-900' 
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
                   onClick={() => setActiveTab('statistics')}
@@ -388,7 +388,7 @@ const CourseDetail: React.FC = () => {
                           <Star size={16} className="text-yellow-400" />
                           <span>4.7</span>
                         </div>
-                        <Link to="#" className="text-sm text-blue-600 hover:text-blue-800 flex items-center">
+                        <Link to="#" className="text-sm text-gray-900 hover:text-black flex items-center">
                           View <ChevronRight size={16} />
                         </Link>
                       </div>
@@ -421,7 +421,7 @@ const CourseDetail: React.FC = () => {
                     Log In to Save
                   </Button>
                   <p className="text-sm text-gray-500 text-center">
-                    Don't have an account? <Link to="/signup" className="text-blue-600 hover:underline">Sign up</Link>
+                   Don't have an account? <Link to="/signup" className="text-gray-900 hover:underline">Sign up</Link>
                   </p>
                 </div>
               )}
