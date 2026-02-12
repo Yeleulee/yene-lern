@@ -7,6 +7,8 @@ export interface Video {
   thumbnailUrl: string;
   channelTitle: string;
   publishedAt: string;
+  duration?: string;
+  viewCount?: string;
 }
 
 export interface UserVideo extends Video {
@@ -14,6 +16,8 @@ export interface UserVideo extends Video {
   notes?: string;
   lastWatched?: string;
   progress?: number;
+  completedSegmentIds?: string[];
+  currentTimestamp?: number;
 }
 
 export interface User {

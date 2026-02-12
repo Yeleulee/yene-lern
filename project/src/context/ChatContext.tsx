@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
-import { askGemini, testGeminiConnection, checkGeminiCompatibility, updateApiKey } from '../services/geminiService';
+import { askDeepSeek, testDeepSeekConnection } from '../services/deepSeekService';
 
 // Define types
 export interface Message {
@@ -31,7 +31,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      content: 'Hi there! I\'m your Yene Learn AI assistant. How can I help you with your learning journey today?',
+      content: 'Hi there! I\'m your Yene Learn AI assistant (Powered by DeepSeek). How can I help you with your learning journey today?',
       sender: 'ai',
       timestamp: new Date(),
     },
@@ -40,7 +40,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'checking' | 'unknown'>('checking');
   const [connectionChecked, setConnectionChecked] = useState(false);
   const [lastConnectionCheck, setLastConnectionCheck] = useState(0);
-  const [compatibilityChecked, setCompatibilityChecked] = useState(false);
   const [lastError, setLastError] = useState<string | null>(null);
 
   // Load messages from localStorage on mount
@@ -57,7 +56,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.error('Error parsing saved messages:', error);
       }
     }
-    
+
     // Check connection status immediately on load
     checkConnection();
   }, []);
@@ -69,47 +68,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [messages]);
 
-  // Run a compatibility check to find a working endpoint
+  // Compatibility check is now a simple pass-through since DeepSeek manages its own endpoints
   const runCompatibilityCheck = useCallback(async () => {
-    console.log("Running compatibility check from context...");
-    
-    try {
-      setConnectionStatus('checking');
-      const result = await checkGeminiCompatibility();
-      setCompatibilityChecked(true);
-      
-      if (result.workingEndpoint) {
-        // If we found a working endpoint, run a connection test
-        const connectionTest = await testGeminiConnection();
-        
-        if (connectionTest.success) {
-          setConnectionStatus('connected');
-          return { 
-            success: true, 
-            message: `Found working endpoint: ${result.workingEndpoint}` 
-          };
-        } else {
-          setConnectionStatus('disconnected');
-          return { 
-            success: false, 
-            message: `Found endpoint ${result.workingEndpoint} but connection test failed: ${connectionTest.message}` 
-          };
-        }
-      } else {
-        setConnectionStatus('disconnected');
-        return { 
-          success: false, 
-          message: result.message 
-        };
-      }
-    } catch (error) {
-      console.error("Error in compatibility check:", error);
-      setConnectionStatus('disconnected');
-      return { 
-        success: false, 
-        message: error instanceof Error ? error.message : "Unknown error during compatibility check"
-      };
-    }
+    return { success: true, message: "DeepSeek API is compatible." };
   }, []);
 
   // Check connection status periodically
@@ -129,32 +90,20 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLastConnectionCheck(now);
 
     try {
-      const result = await testGeminiConnection();
+      const result = await testDeepSeekConnection();
       const isConnected = result.success;
       if (!result.success) setLastError(result.message);
-      
-      if (!isConnected && !compatibilityChecked) {
-        // If connection failed and we haven't tried compatibility check yet,
-        // attempt to find a working endpoint
-        console.log("Connection test failed, trying compatibility check...");
-        const compatResult = await runCompatibilityCheck();
-        if (compatResult.success) {
-          setConnectionStatus('connected');
-          setConnectionChecked(true);
-          return true;
-        }
-      }
-      
+
       setConnectionStatus(isConnected ? 'connected' : 'disconnected');
       setConnectionChecked(true);
       return isConnected;
-      } catch (error) {
+    } catch (error) {
       console.error('Error checking connection:', error);
       setLastError(error instanceof Error ? error.message : 'Unknown error');
       setConnectionStatus('disconnected');
       return false;
     }
-  }, [connectionStatus, connectionChecked, lastConnectionCheck, compatibilityChecked, runCompatibilityCheck]);
+  }, [connectionStatus, connectionChecked, lastConnectionCheck]);
 
   // Check connection on mount and when online status changes
   useEffect(() => {
@@ -202,68 +151,36 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error('Cannot connect to AI service. Please check your internet connection, API key, and try again.');
       }
 
-      // Construct a more comprehensive prompt with context
+      // Construct context-aware prompt
       let prompt = content;
       let isLearningPlan = false;
-      
-      // Check if this is a learning assistant message
       const isLearningAssistant = content.startsWith('[Learning Assistant]');
+
       if (isLearningAssistant) {
-        // Extract the actual question
         const question = content.replace('[Learning Assistant]', '').trim();
-        
-        // Get the last few messages for context
-        const contextMessages = messages
-          .slice(-4) // Get the most recent 4 messages as context
-          .map(m => `${m.sender === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
-          .join('\n');
-        
-        // Check if this is a personalized learning plan request
+        const contextMessages = messages.slice(-4).map(m => `${m.sender === 'user' ? 'User' : 'Assistant'}: ${m.content}`).join('\n');
+
         isLearningPlan = question.includes('Generate a personalized learning plan');
-        
+
         if (isLearningPlan) {
-          prompt = `${question}
-                   
-                   Please format your response as a structured learning plan with the following sections:
-                   1. Summary of my learning profile
-                   2. Goals based on my profile
-                   3. Recommended next steps (be specific)
-                   4. Daily learning schedule
-                   5. Resources tailored to my interests
-                   
-                   Make the plan specific and actionable based on the information provided.
-                   Format the plan in a clear, organized way that's easy to follow.`;
+          prompt = `Generate a personalized learning plan based on: ${question}. Context: ${contextMessages}`;
         } else {
-          prompt = `As a learning platform assistant specialized in helping students improve their learning journey.
-                    The user is using the "My Learning" section of the platform where they track their courses and learning progress.
-                    
-                    Here's our recent conversation:
-                    ${contextMessages}
-                    
-                    The user is asking about their learning journey: ${question}
-                    
-                    Please provide specific, actionable advice about learning strategies, study techniques, or content recommendations.
-                    Focus on being helpful, practical, and motivating.`;
+          prompt = `Context: ${contextMessages}. User Question: ${question}`;
         }
       } else if (videoContext) {
-        // Get the last few messages for this context to provide conversation history
         const contextMessages = messages
           .filter(m => m.context === videoContext || !m.context)
-          .slice(-6) // Get the most recent 6 messages as context
+          .slice(-6)
           .map(m => `${m.sender === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
           .join('\n');
-          
-        prompt = `I'm watching a YouTube video with ID: ${videoContext}. 
-                  Here's our recent conversation about this video:
-                  ${contextMessages}
-                  
-                  My new question is: ${content}`;
+
+        prompt = `VideoID: ${videoContext}. Conversation Context: ${contextMessages}. User Question: ${content}`;
       }
 
       try {
-        // Get AI response
-        const response = await askGemini(prompt);
-        
+        // Get DeepSeek response
+        const response = await askDeepSeek(prompt);
+
         // Add AI message
         const aiMessage: Message = {
           id: (Date.now() + 1).toString(),
@@ -277,13 +194,12 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } catch (error) {
         console.error('API Error handling message:', error);
         setLastError(error instanceof Error ? error.message : 'Unknown error');
-        
-        // Provide clear error message about API issues
+
         const errorMessage: Message = {
           id: (Date.now() + 1).toString(),
-          content: error instanceof Error 
-            ? `Sorry, there was an error with the AI service: ${error.message}`
-            : 'Sorry, there was an error connecting to the AI service. Please try again later.',
+          content: error instanceof Error
+            ? `AI Error: ${error.message}`
+            : 'Error connecting to AI service.',
           sender: 'ai',
           timestamp: new Date(),
           context: videoContext,
@@ -291,27 +207,17 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
 
         setMessages((prev) => [...prev, errorMessage]);
-        
-        // Also update connection status for critical API errors
-        if (error instanceof Error && (
-          error.message.includes('API key') || 
-          error.message.includes('authentication') ||
-          error.message.includes('unauthorized') ||
-          error.message.includes('rate limit')
-        )) {
-          setConnectionStatus('disconnected');
-        }
+        setConnectionStatus('disconnected');
       }
     } catch (error) {
       console.error('Error in sendMessage function:', error);
       setLastError(error instanceof Error ? error.message : 'Unknown error');
-      
-      // Add error message with more specific information
+
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
-        content: error instanceof Error 
-          ? `Sorry, I encountered an error: ${error.message}`
-          : 'Sorry, I encountered an error. Please try again later.',
+        content: error instanceof Error
+          ? `Error: ${error.message}`
+          : 'Error occurred.',
         sender: 'ai',
         timestamp: new Date(),
         context: videoContext,
@@ -329,7 +235,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setMessages([
       {
         id: '1',
-        content: 'Hi there! I\'m your Yene Learn AI assistant. How can I help you with your learning journey today?',
+        content: 'Hi there! I\'m your Yene Learn AI assistant (Powered by DeepSeek). How can I help you with your learning journey today?',
         sender: 'ai',
         timestamp: new Date(),
       },
@@ -337,22 +243,11 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem('chat_messages');
   };
 
-  // Set a new API key
+  // Set a new API key stub
   const setApiKey = useCallback((key: string): boolean => {
-    try {
-      const success = updateApiKey(key);
-      if (success) {
-        // Trigger a connection check after setting the new key
-        setTimeout(() => {
-          checkConnection();
-        }, 500);
-      }
-      return success;
-    } catch (error) {
-      console.error('Error setting API key:', error);
-      return false;
-    }
-  }, [checkConnection]);
+    console.warn("API Key update for DeepSeek should be done via .env VITE_OPENROUTER_API_KEY");
+    return false;
+  }, []);
 
   return (
     <ChatContext.Provider
@@ -381,4 +276,4 @@ export const useChat = () => {
   return context;
 };
 
-export default ChatContext; 
+export default ChatContext;

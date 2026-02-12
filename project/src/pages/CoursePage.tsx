@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { 
-  BookOpen, 
-  Clock, 
-  CheckCircle, 
-  Star, 
-  Users, 
-  Calendar, 
-  Share, 
+import {
+  BookOpen,
+  Clock,
+  CheckCircle,
+  Star,
+  Users,
+  Calendar,
+  Share,
   ChevronRight,
   BarChart,
   Brain,
@@ -17,7 +17,7 @@ import Button from '../components/ui/Button';
 import { useAuth } from '../context/AuthContext';
 import { useLearning } from '../context/LearningContext';
 import { getVideoDetails, getVideoStats } from '../services/youtubeService';
-import { generateVideoSummary } from '../services/geminiService';
+import { generateVideoSummary } from '../services/deepSeekService';
 import { Video } from '../types';
 import { getCourseSectionByVideoId } from '../data/mockCourseData';
 
@@ -26,14 +26,14 @@ const CourseDetail: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { getVideoById, addVideo, updateStatus } = useLearning();
-  
+
   const [video, setVideo] = useState<Video | null>(null);
   const [videoStats, setVideoStats] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [summary, setSummary] = useState('');
   const [activeTab, setActiveTab] = useState('summary');
   const [error, setError] = useState<string | null>(null);
-  
+
   const userVideo = user ? getVideoById(videoId) : undefined;
   const isVideoSaved = !!userVideo;
 
@@ -41,25 +41,25 @@ const CourseDetail: React.FC = () => {
     async function loadCourseData() {
       setIsLoading(true);
       setError(null);
-      
+
       try {
         // Check if this is a valid course video
         const courseData = getCourseSectionByVideoId(videoId);
         if (!courseData) {
           console.warn(`Video ID ${videoId} is not part of any course`);
         }
-        
+
         // Get video details
         const videoDetails = await getVideoDetails(videoId);
         if (videoDetails) {
           setVideo(videoDetails);
-          
+
           // Get video stats (like duration, views)
           const stats = await getVideoStats(videoId);
           if (stats) {
             setVideoStats(stats);
           }
-          
+
           // Generate AI summary
           const summaryData = await generateVideoSummary(
             videoDetails.title,
@@ -160,12 +160,12 @@ const CourseDetail: React.FC = () => {
     const hours = isoDuration.match(/(\d+)H/);
     const minutes = isoDuration.match(/(\d+)M/);
     const seconds = isoDuration.match(/(\d+)S/);
-    
+
     let result = '';
     if (hours) result += `${hours[1]}h `;
     if (minutes) result += `${minutes[1]}m `;
     if (seconds && !hours && !minutes) result += `${seconds[1]}s`;
-    
+
     return result.trim();
   };
 
@@ -226,23 +226,23 @@ const CourseDetail: React.FC = () => {
 
           {/* Action Buttons */}
           <div className="flex flex-wrap gap-3">
-            <Button 
-              onClick={handleStartCourse} 
+            <Button
+              onClick={handleStartCourse}
               className="px-4 sm:px-6 py-2 bg-gray-900 hover:bg-gray-800 w-full sm:w-auto"
             >
               Start Learning
             </Button>
             {!isVideoSaved ? (
-              <Button 
-                variant="outline" 
-                onClick={handleSaveToCourse} 
+              <Button
+                variant="outline"
+                onClick={handleSaveToCourse}
                 className="px-4 sm:px-6 py-2 border-gray-900 text-gray-900 hover:bg-gray-100 w-full sm:w-auto"
               >
                 Save to My Learning
               </Button>
             ) : (
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 className="px-4 sm:px-6 py-2 border-green-600 text-green-600 hover:bg-green-50 w-full sm:w-auto"
                 disabled
               >
@@ -250,8 +250,8 @@ const CourseDetail: React.FC = () => {
                 Saved to My Learning
               </Button>
             )}
-            <Button 
-              variant="ghost" 
+            <Button
+              variant="ghost"
               className="px-4 text-gray-600 w-full sm:w-auto"
             >
               <Share size={18} className="mr-2" />
@@ -267,34 +267,31 @@ const CourseDetail: React.FC = () => {
             {/* Tabs Navigation */}
             <div className="border-b border-gray-200 mb-6 overflow-x-auto">
               <div className="flex gap-4 md:gap-6 -mb-px min-w-max">
-                <button 
-                  className={`py-3 px-1 font-medium border-b-2 ${
-                    activeTab === 'summary' 
-                      ? 'border-gray-900 text-gray-900' 
+                <button
+                  className={`py-3 px-1 font-medium border-b-2 ${activeTab === 'summary'
+                      ? 'border-gray-900 text-gray-900'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
+                    }`}
                   onClick={() => setActiveTab('summary')}
                 >
                   <Brain size={18} className="inline-block mr-2" />
                   <span>AI Summary</span>
                 </button>
-                <button 
-                  className={`py-3 px-1 font-medium border-b-2 ${
-                    activeTab === 'about' 
-                      ? 'border-gray-900 text-gray-900' 
+                <button
+                  className={`py-3 px-1 font-medium border-b-2 ${activeTab === 'about'
+                      ? 'border-gray-900 text-gray-900'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
+                    }`}
                   onClick={() => setActiveTab('about')}
                 >
                   <BookOpen size={18} className="inline-block mr-2" />
                   <span>About</span>
                 </button>
-                <button 
-                  className={`py-3 px-1 font-medium border-b-2 ${
-                    activeTab === 'statistics' 
-                      ? 'border-gray-900 text-gray-900' 
+                <button
+                  className={`py-3 px-1 font-medium border-b-2 ${activeTab === 'statistics'
+                      ? 'border-gray-900 text-gray-900'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
+                    }`}
                   onClick={() => setActiveTab('statistics')}
                 >
                   <BarChart size={18} className="inline-block mr-2" />
@@ -325,9 +322,9 @@ const CourseDetail: React.FC = () => {
                     <h3 className="font-medium mb-2">Instructor</h3>
                     <div className="flex items-center gap-3">
                       <div className="w-12 h-12 bg-gray-200 rounded-full overflow-hidden">
-                        <img 
-                          src={`https://ui-avatars.com/api/?name=${encodeURIComponent(video.channelTitle)}&background=random`} 
-                          alt={video.channelTitle} 
+                        <img
+                          src={`https://ui-avatars.com/api/?name=${encodeURIComponent(video.channelTitle)}&background=random`}
+                          alt={video.channelTitle}
                           className="w-full h-full object-cover"
                         />
                       </div>
@@ -408,8 +405,8 @@ const CourseDetail: React.FC = () => {
                 Save this course to track your progress and receive personalized recommendations.
               </p>
               {user ? (
-                <Button 
-                  onClick={handleSaveToCourse} 
+                <Button
+                  onClick={handleSaveToCourse}
                   disabled={isVideoSaved}
                   className="w-full"
                 >
@@ -421,7 +418,7 @@ const CourseDetail: React.FC = () => {
                     Log In to Save
                   </Button>
                   <p className="text-sm text-gray-500 text-center">
-                   Don't have an account? <Link to="/signup" className="text-gray-900 hover:underline">Sign up</Link>
+                    Don't have an account? <Link to="/signup" className="text-gray-900 hover:underline">Sign up</Link>
                   </p>
                 </div>
               )}

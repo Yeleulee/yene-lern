@@ -10,9 +10,9 @@ interface SearchBarProps {
   className?: string;
 }
 
-const SearchBar: React.FC<SearchBarProps> = ({ 
-  onSearch, 
-  isLoading = false, 
+const SearchBar: React.FC<SearchBarProps> = ({
+  onSearch,
+  isLoading = false,
   placeholder = "Search for educational videos...",
   className = ""
 }) => {
@@ -26,24 +26,26 @@ const SearchBar: React.FC<SearchBarProps> = ({
   };
 
   return (
-    <form onSubmit={handleSubmit} className={`w-full max-w-3xl mx-auto ${className}`}>
-      <div className="flex items-center rounded-lg shadow-lg bg-white overflow-hidden border border-gray-200">
-        <Input
+    <form onSubmit={handleSubmit} className={`w-full max-w-3xl mx-auto group ${className}`}>
+      <div className="relative flex items-center bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 border border-gray-100 p-1.5 focus-within:ring-4 focus-within:ring-blue-50 focus-within:border-blue-200">
+        <div className="pl-4 text-gray-400 group-focus-within:text-blue-500 transition-colors">
+          <Search size={22} strokeWidth={2.5} />
+        </div>
+        <input
           type="text"
           placeholder={placeholder}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="border-0 shadow-none focus:ring-0 text-base h-12 text-gray-900 bg-white placeholder-gray-500 flex-1"
+          className="w-full px-4 py-3 bg-transparent border-0 focus:ring-0 text-gray-900 placeholder-gray-400 font-medium text-lg outline-none"
           aria-label={placeholder}
         />
         <Button
           type="submit"
           isLoading={isLoading}
-          className="h-12 rounded-l-none btn-primary"
+          className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-xl shadow-lg shadow-blue-200 transition-all active:scale-95 flex items-center gap-2"
           aria-label="Search"
         >
-          <Search size={20} className="mr-1" />
-          <span className="hidden sm:inline">Search</span>
+          <span>Search</span>
         </Button>
       </div>
     </form>

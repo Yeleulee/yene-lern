@@ -13,7 +13,7 @@ import Button from '../components/ui/Button';
 import { useAuth } from '../context/AuthContext';
 import { useLearning } from '../context/LearningContext';
 import { getVideoDetails } from '../services/youtubeService';
-import { generateVideoSummary } from '../services/geminiService';
+import { generateVideoSummary } from '../services/deepSeekService';
 import { Video, VideoSummary } from '../types';
 import { getCourseSectionByVideoId, getCourseById } from '../data/mockCourseData';
 
@@ -23,7 +23,7 @@ const VideoPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { getVideoById, addVideo, updateStatus } = useLearning();
-  
+
   const [video, setVideo] = useState<Video | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [videoSummary, setVideoSummary] = useState<VideoSummary | null>(null);
@@ -37,7 +37,7 @@ const VideoPage: React.FC = () => {
   const [videoDuration, setVideoDuration] = useState(0);
   const playerRef = useRef<any>(null);
   const [videoSegments, setVideoSegments] = useState<{ startTime: number; title: string }[]>([]);
-  
+
   const userVideo = user ? getVideoById(videoId) : undefined;
   const isVideoSaved = !!userVideo;
 
@@ -45,10 +45,10 @@ const VideoPage: React.FC = () => {
   useEffect(() => {
     const queryParams = new URLSearchParams(location.search);
     const courseParam = queryParams.get('course');
-    
+
     if (courseParam) {
       const courseExists = getCourseById(courseParam);
-      
+
       if (courseExists) {
         setCourseId(courseParam);
       }
@@ -59,7 +59,7 @@ const VideoPage: React.FC = () => {
         try {
           const context = JSON.parse(storedContext);
           const courseExists = getCourseById(context.courseId);
-          
+
           if (courseExists) {
             // If the video is part of the stored course, keep the context
             const courseData = getCourseSectionByVideoId(videoId);
@@ -81,17 +81,17 @@ const VideoPage: React.FC = () => {
       try {
         // Check if this video is part of a course
         const courseData = getCourseSectionByVideoId(videoId);
-        
+
         if (courseData) {
           const { course, section } = courseData;
-          
+
           // Verify the video ID matches what's expected in the course
           if (section.videoId !== videoId) {
             setCourseError('The requested video does not match the expected course content.');
             setIsPartOfCourse(false);
           } else {
             setIsPartOfCourse(true);
-            
+
             // If we have a courseId from the URL but it doesn't match this video's course,
             // update to the correct course
             if (courseId && courseId !== course.id) {
@@ -104,12 +104,12 @@ const VideoPage: React.FC = () => {
           setIsPartOfCourse(false);
           setCourseId(null);
         }
-        
+
         // For both course and non-course videos, load the video details
         const videoDetails = await getVideoDetails(videoId);
         if (videoDetails) {
           setVideo(videoDetails);
-          
+
           // Generate summary automatically
           setIsSummaryLoading(true);
           const summary = await generateVideoSummary(
@@ -137,20 +137,20 @@ const VideoPage: React.FC = () => {
       const timestampRegex = /(?:\[)?(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\])?(?:\s?[-–—]\s?|\s)([^\r\n]+)/gm;
       const parsedSegments: { startTime: number; title: string }[] = [];
       let match;
-      
+
       // Find all timestamps in the description
       while ((match = timestampRegex.exec(video.description)) !== null) {
         const hours = match[3] ? parseInt(match[1]) : 0;
         const minutes = match[3] ? parseInt(match[2]) : parseInt(match[1]);
         const seconds = match[3] ? parseInt(match[3]) : parseInt(match[2]);
         const title = match[4].trim();
-        
+
         // Calculate start time in seconds
         const startTime = hours * 3600 + minutes * 60 + seconds;
-        
+
         parsedSegments.push({ startTime, title });
       }
-      
+
       // Sort segments chronologically
       parsedSegments.sort((a, b) => a.startTime - b.startTime);
       setVideoSegments(parsedSegments);
@@ -171,7 +171,7 @@ const VideoPage: React.FC = () => {
 
   const handleAskQuestion = async () => {
     if (!video || !userQuestion.trim()) return;
-    
+
     setIsAskingQuestion(true);
     try {
       const updatedSummary = await generateVideoSummary(
@@ -192,18 +192,18 @@ const VideoPage: React.FC = () => {
     setCurrentTime(time);
     setVideoDuration(duration);
   };
-  
+
   // Add a function to handle seeking - improved with better targeting
   const handleSeek = (time: number) => {
     console.log(`Seeking to ${time} seconds`);
-    
+
     // First try using the ref
     if (playerRef.current && playerRef.current.seekTo) {
       console.log('Using player ref to seek');
       playerRef.current.seekTo(time);
       return; // Exit if successful
     }
-    
+
     // If ref method fails, try more specific iframe selection
     try {
       // Load YouTube API if not already loaded
@@ -213,19 +213,19 @@ const VideoPage: React.FC = () => {
         tag.src = 'https://www.youtube.com/iframe_api';
         const firstScriptTag = document.getElementsByTagName('script')[0];
         firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
-        
+
         // Try seeking after a short delay to allow API to load
         setTimeout(() => handleSeek(time), 1000);
         return;
       }
-      
+
       // Find the iframe by its ID or class
-      const playerIframe = document.getElementById(`youtube-player-${videoId}`) || 
-                          document.querySelector('.video-player-container iframe');
-      
+      const playerIframe = document.getElementById(`youtube-player-${videoId}`) ||
+        document.querySelector('.video-player-container iframe');
+
       if (playerIframe) {
         console.log('Found iframe for seeking:', playerIframe);
-        
+
         // Try using direct iframe postMessage first
         try {
           playerIframe.contentWindow?.postMessage(JSON.stringify({
@@ -237,7 +237,7 @@ const VideoPage: React.FC = () => {
         } catch (e) {
           console.error('Error using postMessage seeking:', e);
         }
-        
+
         // Also try the YouTube API approach as backup
         try {
           // Get iframe ID
@@ -252,7 +252,7 @@ const VideoPage: React.FC = () => {
         } catch (e) {
           console.error('Error using YT.get seeking:', e);
         }
-    } else {
+      } else {
         // Last resort - try to find ALL iframes and use the first YouTube one
         console.log('No specific iframe found, trying all iframes...');
         const allIframes = document.querySelectorAll('iframe');
@@ -261,10 +261,10 @@ const VideoPage: React.FC = () => {
           if (iframe.src && iframe.src.includes('youtube.com/embed/')) {
             try {
               iframe.contentWindow?.postMessage(JSON.stringify({
-          event: 'command',
-          func: 'seekTo',
-          args: [time, true]
-        }), '*');
+                event: 'command',
+                func: 'seekTo',
+                args: [time, true]
+              }), '*');
               console.log('Sent seek command to iframe:', iframe);
               break;
             } catch (e) {
@@ -285,7 +285,7 @@ const VideoPage: React.FC = () => {
       console.log('VideoPage: Player reference established');
     }
   }, [videoId]);
-  
+
   // Format time as MM:SS
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
@@ -300,7 +300,7 @@ const VideoPage: React.FC = () => {
           <div className="aspect-video bg-gray-300 rounded-lg mb-6"></div>
           <div className="h-8 bg-gray-300 rounded w-3/4 mb-4"></div>
           <div className="h-4 bg-gray-200 rounded w-1/2 mb-8"></div>
-          
+
           <div className="grid md:grid-cols-3 gap-6">
             <div className="md:col-span-2">
               <div className="h-64 bg-gray-200 rounded-lg"></div>
@@ -353,7 +353,7 @@ const VideoPage: React.FC = () => {
 
   // For course videos OR any video with detected segments, display the segmented player
   if (isPartOfCourse || (videoSegments && videoSegments.length > 0)) {
-    return <SegmentedVideoPlayer 
+    return <SegmentedVideoPlayer
       videoId={videoId}
       title={video.title}
       description={video.description || ''}
@@ -370,57 +370,57 @@ const VideoPage: React.FC = () => {
             {/* Video player - centered with explicit styling */}
             <div className="w-full mb-4 bg-black rounded-lg overflow-hidden flex justify-center items-center">
               <div className="w-full max-w-3xl mx-auto">
-        <VideoPlayer 
-          videoId={videoId} 
-          onTimeUpdate={handleTimeUpdate}
-          ref={playerRef}
-          segments={videoSegments}
+                <VideoPlayer
+                  videoId={videoId}
+                  onTimeUpdate={handleTimeUpdate}
+                  ref={playerRef}
+                  segments={videoSegments}
                   showSegmentMarkers={videoSegments.length > 0}
                   autoplay={true}
-        />
+                />
               </div>
-      </div>
+            </div>
 
             <div className="max-w-3xl mx-auto w-full">
-      <h1 className="text-2xl md:text-3xl font-bold mb-2">{video.title}</h1>
-      <p className="text-gray-600 mb-2">{video.channelTitle}</p>
-      
-      {!isVideoSaved && user && (
-        <div className="mb-6">
-          <Button onClick={handleSaveVideo}>Save to My Learning</Button>
-        </div>
-      )}
+              <h1 className="text-2xl md:text-3xl font-bold mb-2">{video.title}</h1>
+              <p className="text-gray-600 mb-2">{video.channelTitle}</p>
+
+              {!isVideoSaved && user && (
+                <div className="mb-6">
+                  <Button onClick={handleSaveVideo}>Save to My Learning</Button>
+                </div>
+              )}
             </div>
-        </div>
+          </div>
 
           <div className="space-y-6 lg:w-1/3">
-          {isVideoSaved && userVideo && (
-            <ProgressTracker 
-              video={userVideo}
-              onUpdateStatus={handleUpdateStatus}
-            />
-          )}
-          
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
-            <h2 className="text-lg font-semibold mb-4">Ask a Question</h2>
-            <div className="space-y-4">
-              <Input
-                value={userQuestion}
-                onChange={(e) => setUserQuestion(e.target.value)}
-                placeholder="Ask about this video..."
+            {isVideoSaved && userVideo && (
+              <ProgressTracker
+                video={userVideo}
+                onUpdateStatus={handleUpdateStatus}
               />
-              <Button 
-                onClick={handleAskQuestion} 
-                disabled={isAskingQuestion || !userQuestion.trim()}
-                isLoading={isAskingQuestion}
-                className="w-full"
-              >
-                <MessageSquareText className="mr-2 h-4 w-4" />
-                Ask Question
-              </Button>
+            )}
+
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
+              <h2 className="text-lg font-semibold mb-4">Ask a Question</h2>
+              <div className="space-y-4">
+                <Input
+                  value={userQuestion}
+                  onChange={(e) => setUserQuestion(e.target.value)}
+                  placeholder="Ask about this video..."
+                />
+                <Button
+                  onClick={handleAskQuestion}
+                  disabled={isAskingQuestion || !userQuestion.trim()}
+                  isLoading={isAskingQuestion}
+                  className="w-full"
+                >
+                  <MessageSquareText className="mr-2 h-4 w-4" />
+                  Ask Question
+                </Button>
               </div>
             </div>
-            
+
             {/* Video segments list */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
               <h2 className="text-lg font-semibold mb-4">Video Segments</h2>

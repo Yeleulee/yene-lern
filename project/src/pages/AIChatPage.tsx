@@ -1,82 +1,35 @@
 ﻿import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Plus, Clock, Trash2, BookOpen, Save, CheckCheck, RefreshCw, Copy, Check, ThumbsUp, ThumbsDown, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import {
+    Send,
+    Plus,
+    PanelLeftClose,
+    PanelLeftOpen,
+    AlertCircle,
+    Sparkles,
+    MessageSquare,
+    ChevronRight,
+    Info,
+    ExternalLink,
+    ShieldCheck,
+    BookOpen,
+    Zap
+} from 'lucide-react';
 import { useChat } from '../context/ChatContext';
 import { useAuth } from '../context/AuthContext';
-import { getSavedLearningPlanIds, saveLearningPlanId } from '../services/learningPlanService';
 import logoImg from '../assets/logo.png';
 
-/* â”€â”€â”€ Markdown-like renderer (no deps) â”€â”€â”€ */
+/* ——— Markdown-like renderer ——— */
 const FormattedContent: React.FC<{ content: string }> = ({ content }) => {
-    const renderLine = (line: string, idx: number) => {
-        // Bold: **text**
-        const parts = line.split(/(\*\*[^*]+\*\*)/g);
-        const rendered = parts.map((part, i) => {
-            if (part.startsWith('**') && part.endsWith('**')) {
-                return <strong key={i} className="font-semibold text-gray-900">{part.slice(2, -2)}</strong>;
-            }
-            // Inline code: `code`
-            const codeParts = part.split(/(`[^`]+`)/g);
-            return codeParts.map((cp, j) => {
-                if (cp.startsWith('`') && cp.endsWith('`')) {
-                    return <code key={`${i}-${j}`} className="px-1.5 py-0.5 bg-gray-100 rounded text-[13px] font-mono text-gray-800">{cp.slice(1, -1)}</code>;
-                }
-                return <span key={`${i}-${j}`}>{cp}</span>;
-            });
-        });
-
-        // Heading: lines starting with ### ## #
-        if (line.startsWith('### ')) {
-            return <h4 key={idx} className="text-sm font-bold text-gray-900 mt-4 mb-1.5">{line.slice(4)}</h4>;
-        }
-        if (line.startsWith('## ')) {
-            return <h3 key={idx} className="text-base font-bold text-gray-900 mt-4 mb-2">{line.slice(3)}</h3>;
-        }
-        if (line.startsWith('# ')) {
-            return <h2 key={idx} className="text-lg font-bold text-gray-900 mt-4 mb-2">{line.slice(2)}</h2>;
-        }
-
-        // Numbered list
-        const numMatch = line.match(/^(\d+)\.\s(.+)/);
-        if (numMatch) {
-            return (
-                <div key={idx} className="flex gap-2.5 mb-1.5 ml-1">
-                    <span className="flex-shrink-0 w-5 h-5 rounded-full bg-gray-900 text-white text-[10px] font-bold flex items-center justify-center mt-0.5">
-                        {numMatch[1]}
-                    </span>
-                    <span className="flex-1">{renderInline(numMatch[2])}</span>
-                </div>
-            );
-        }
-
-        // Bullet list: - or *
-        if (line.match(/^[\-\*]\s/)) {
-            return (
-                <div key={idx} className="flex gap-2 mb-1 ml-2">
-                    <span className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-gray-400 mt-2"></span>
-                    <span className="flex-1">{renderInline(line.slice(2))}</span>
-                </div>
-            );
-        }
-
-        // Empty line â†’ spacer
-        if (line.trim() === '') {
-            return <div key={idx} className="h-2" />;
-        }
-
-        // Regular paragraph
-        return <p key={idx} className="mb-1">{rendered}</p>;
-    };
-
     const renderInline = (text: string) => {
         const parts = text.split(/(\*\*[^*]+\*\*)/g);
         return parts.map((part, i) => {
             if (part.startsWith('**') && part.endsWith('**')) {
-                return <strong key={i} className="font-semibold text-gray-900">{part.slice(2, -2)}</strong>;
+                return <strong key={i} className="font-bold text-gray-900">{part.slice(2, -2)}</strong>;
             }
             const codeParts = part.split(/(`[^`]+`)/g);
             return codeParts.map((cp, j) => {
                 if (cp.startsWith('`') && cp.endsWith('`')) {
-                    return <code key={`${i}-${j}`} className="px-1.5 py-0.5 bg-gray-100 rounded text-[13px] font-mono text-gray-800">{cp.slice(1, -1)}</code>;
+                    return <code key={`${i}-${j}`} className="px-1.5 py-0.5 bg-gray-100 rounded text-[13px] font-mono text-indigo-600 font-medium">{cp.slice(1, -1)}</code>;
                 }
                 return <span key={`${i}-${j}`}>{cp}</span>;
             });
@@ -84,127 +37,72 @@ const FormattedContent: React.FC<{ content: string }> = ({ content }) => {
     };
 
     const lines = content.split('\n');
-
-    // Detect code blocks (``` ... ```)
     const elements: React.ReactNode[] = [];
-    let i = 0;
-    while (i < lines.length) {
-        if (lines[i].startsWith('```')) {
-            const lang = lines[i].slice(3).trim();
-            const codeLines: string[] = [];
-            i++;
-            while (i < lines.length && !lines[i].startsWith('```')) {
-                codeLines.push(lines[i]);
-                i++;
-            }
-            i++; // skip closing ```
+
+    lines.forEach((line, idx) => {
+        if (line.trim() === '') {
+            elements.push(<div key={`br-${idx}`} className="h-4" />);
+            return;
+        }
+
+        if (line.startsWith('### ')) {
+            elements.push(<h4 key={idx} className="text-base font-bold text-gray-900 mt-6 mb-2">{line.slice(4)}</h4>);
+        } else if (line.startsWith('## ')) {
+            elements.push(<h3 key={idx} className="text-lg font-bold text-gray-900 mt-7 mb-3">{line.slice(3)}</h3>);
+        } else if (line.startsWith('# ')) {
+            elements.push(<h2 key={idx} className="text-xl font-bold text-gray-900 mt-8 mb-4">{line.slice(2)}</h2>);
+        } else if (line.match(/^[\-\*]\s/)) {
             elements.push(
-                <div key={`code-${i}`} className="my-3 rounded-xl overflow-hidden border border-gray-200">
-                    {lang && <div className="px-4 py-1.5 bg-gray-100 text-xs text-gray-500 font-mono border-b border-gray-200">{lang}</div>}
-                    <pre className="p-4 bg-gray-50 overflow-x-auto text-[13px] leading-relaxed font-mono text-gray-800">
-                        {codeLines.join('\n')}
-                    </pre>
+                <div key={idx} className="flex gap-3 mb-2 ml-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-2 flex-shrink-0" />
+                    <div className="text-gray-700 leading-relaxed">{renderInline(line.slice(2))}</div>
                 </div>
             );
+        } else if (line.match(/^\d+\.\s/)) {
+            const match = line.match(/^(\d+)\.\s(.+)/);
+            if (match) {
+                elements.push(
+                    <div key={idx} className="flex gap-3 mb-2 ml-1">
+                        <span className="font-bold text-indigo-600 min-w-[1.2rem]">{match[1]}.</span>
+                        <div className="text-gray-700 leading-relaxed">{renderInline(match[2])}</div>
+                    </div>
+                );
+            }
         } else {
-            elements.push(renderLine(lines[i], i));
-            i++;
+            elements.push(<p key={idx} className="text-gray-700 leading-relaxed mb-3">{renderInline(line)}</p>);
         }
-    }
+    });
 
-    return <div className="text-sm text-gray-700 leading-relaxed">{elements}</div>;
+    return <div className="chat-markdown">{elements}</div>;
 };
 
-/* â”€â”€â”€ Interactive AI message wrapper â”€â”€â”€ */
-const AIMessageActions: React.FC<{ content: string; messageId: string }> = ({ content, messageId }) => {
-    const [copied, setCopied] = useState(false);
-    const [liked, setLiked] = useState<'up' | 'down' | null>(null);
-
-    const handleCopy = async () => {
-        await navigator.clipboard.writeText(content);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-    };
-
-    return (
-        <div className="flex items-center gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-            <button
-                onClick={handleCopy}
-                className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
-                title="Copy"
-            >
-                {copied ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
-            </button>
-            <button
-                onClick={() => setLiked(liked === 'up' ? null : 'up')}
-                className={`p-1.5 rounded-lg hover:bg-gray-100 transition-colors ${liked === 'up' ? 'text-gray-900 bg-gray-100' : 'text-gray-400 hover:text-gray-600'}`}
-                title="Good response"
-            >
-                <ThumbsUp size={14} />
-            </button>
-            <button
-                onClick={() => setLiked(liked === 'down' ? null : 'down')}
-                className={`p-1.5 rounded-lg hover:bg-gray-100 transition-colors ${liked === 'down' ? 'text-gray-900 bg-gray-100' : 'text-gray-400 hover:text-gray-600'}`}
-                title="Bad response"
-            >
-                <ThumbsDown size={14} />
-            </button>
-        </div>
-    );
-};
-
-/* â”€â”€â”€ Main Chat Page â”€â”€â”€ */
 const AIChatPage: React.FC = () => {
     const { user } = useAuth();
-    const { messages, isLoading, sendMessage, clearChat } = useChat();
+    const { messages, isLoading, sendMessage, clearChat, connectionStatus } = useChat();
     const [input, setInput] = useState('');
     const [sidebarOpen, setSidebarOpen] = useState(true);
-    const [savedPlans, setSavedPlans] = useState<Set<string>>(new Set());
-    const [charCount, setCharCount] = useState(0);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
-    const MAX_CHARS = 1000;
+    const [isApiKeyMissing, setIsApiKeyMissing] = useState(false);
 
-    const getGreeting = () => {
-        const hour = new Date().getHours();
-        if (hour < 12) return 'Good morning';
-        if (hour < 18) return 'Good afternoon';
-        return 'Good evening';
-    };
-
-    const suggestedPrompts = [
-        { text: "Make me a study plan for web dev", icon: "📋" },
-        { text: "Explain machine learning simply", icon: "🎓" },
-        { text: "Summarize this topic briefly", icon: "📝" },
-        { text: "How does blockchain work?", icon: "⚙️" },
-    ];
-
+    // Initial check for API Key placeholder status
     useEffect(() => {
-        setSavedPlans(new Set(getSavedLearningPlanIds()));
+        // OpenRouter key check logic
+        const key = import.meta.env.VITE_OPENROUTER_API_KEY;
+        if (!key || key.includes('your_') || key === '') {
+            setIsApiKeyMissing(true);
+        }
     }, []);
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
 
-    useEffect(() => {
-        inputRef.current?.focus();
-    }, []);
-
-    // Auto-resize textarea
-    const autoResize = useCallback((el: HTMLTextAreaElement | null) => {
-        if (!el) return;
-        el.style.height = 'auto';
-        el.style.height = Math.min(el.scrollHeight, 160) + 'px';
-    }, []);
-
-    const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-        const value = e.target.value;
-        if (value.length <= MAX_CHARS) {
-            setInput(value);
-            setCharCount(value.length);
-            autoResize(e.target);
-        }
+    const handleSendMessage = async () => {
+        if (!input.trim() || isLoading) return;
+        const msg = input;
+        setInput('');
+        await sendMessage(msg);
     };
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -214,331 +112,200 @@ const AIChatPage: React.FC = () => {
         }
     };
 
-    const handleSendMessage = async () => {
-        if (!input.trim() || isLoading) return;
-        const message = input;
-        setInput('');
-        setCharCount(0);
-        if (inputRef.current) {
-            inputRef.current.style.height = 'auto';
-        }
-        await sendMessage(message);
-    };
-
-    const handlePromptClick = async (prompt: string) => {
-        setInput('');
-        setCharCount(0);
-        await sendMessage(prompt);
-    };
-
-    const handleClearChat = () => {
-        if (window.confirm('Clear all chat history?')) clearChat();
-    };
-
-    const saveLearningPlan = (messageId: string) => {
-        saveLearningPlanId(messageId);
-        const next = new Set(savedPlans);
-        next.add(messageId);
-        setSavedPlans(next);
-    };
-
-    const [refreshKey, setRefreshKey] = useState(0);
-
-    const userName = user?.displayName?.split(' ')[0] || user?.email?.split('@')[0] || 'Learner';
-    const hasConversation = messages.length > 1;
+    const suggestions = [
+        "Explain Quantum Computing in simple terms",
+        "Create a 7-day plan to learn React basics",
+        "Explain the concept of Blockchains",
+        "What are the best practices for SEO in 2024?"
+    ];
 
     return (
-        <div className="flex h-[calc(100vh-73px)] bg-gray-50 overflow-hidden">
-            {/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Sidebar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-            <div
-                className={`${sidebarOpen ? 'w-72' : 'w-0'} bg-white border-r border-gray-200 flex flex-col transition-all duration-300 flex-shrink-0 overflow-hidden`}
-            >
-                {/* Sidebar content wrapper */}
-                <div className="w-72 h-full flex flex-col">
-                    {/* Sidebar Header */}
-                    <div className="p-3 border-b border-gray-100 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <img src={logoImg} alt="Yene Learn" className="w-8 h-8 object-contain" />
-                            <span className="font-semibold text-gray-800 text-sm">Yene Learn AI</span>
-                        </div>
-                        <button
-                            onClick={() => setSidebarOpen(false)}
-                            className="p-2 rounded-xl hover:bg-gray-100 text-gray-500 transition-colors"
-                            title="Collapse sidebar"
-                        >
+        <div className="flex h-[calc(100vh-73px)] bg-[#f9fafb] overflow-hidden">
+            {/* Sidebar Context */}
+            <aside className={`${sidebarOpen ? 'w-80' : 'w-0'} bg-white border-r border-gray-200 transition-all duration-300 flex flex-col group overflow-hidden`}>
+                <div className="w-80 flex flex-col h-full">
+                    <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+                        <h2 className="font-bold text-gray-900 flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center">
+                                <Sparkles size={16} className="text-white" />
+                            </div>
+                            Learning AI
+                        </h2>
+                        <button onClick={() => setSidebarOpen(false)} className="p-2 hover:bg-gray-100 rounded-lg text-gray-400">
                             <PanelLeftClose size={18} />
                         </button>
                     </div>
 
-                    {/* New Chat Button */}
-                    <div className="p-3">
+                    <div className="p-4 flex-1 overflow-y-auto">
                         <button
                             onClick={() => clearChat()}
-                            className="w-full flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-gray-900 text-white hover:bg-black transition-all duration-200 font-medium text-sm active:scale-[0.98]"
+                            className="w-full mb-6 flex items-center justify-center gap-2 bg-[#1a1a1b] hover:bg-black text-white py-3 rounded-xl font-bold transition-all shadow-md active:scale-95"
                         >
                             <Plus size={18} />
-                            New Chat
+                            New Discussion
                         </button>
-                    </div>
 
-                    {/* Chat History */}
-                    <div className="flex-1 overflow-y-auto px-3">
-                        <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider px-2 mb-2">Recent</p>
-                        {messages.length > 1 ? (
+                        <div className="space-y-4">
+                            <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest px-2">History</h3>
                             <div className="space-y-1">
-                                <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-gray-100 text-gray-900 text-sm cursor-pointer">
-                                    <Clock size={14} className="text-gray-500 flex-shrink-0" />
-                                    <span className="truncate font-medium">
-                                        {messages.find(m => m.sender === 'user')?.content.slice(0, 32) || 'Current conversation'}...
-                                    </span>
-                                </div>
-                            </div>
-                        ) : (
-                            <p className="text-xs text-gray-400 px-2">No conversations yet</p>
-                        )}
-                    </div>
-
-                    {/* Sidebar Footer */}
-                    <div className="p-3 border-t border-gray-100 flex items-center justify-between">
-                        <button
-                            onClick={handleClearChat}
-                            className="p-2 rounded-xl hover:bg-red-50 hover:text-red-600 text-gray-400 transition-colors"
-                            title="Clear all history"
-                        >
-                            <Trash2 size={16} />
-                        </button>
-                        {user && (
-                            <div className="flex items-center gap-2">
-                                <span className="text-xs text-gray-500 font-medium">{userName}</span>
-                                {user.photoURL ? (
-                                    <img src={user.photoURL} alt="" className="w-7 h-7 rounded-full object-cover" />
+                                {messages.length <= 1 ? (
+                                    <p className="text-sm text-gray-400 px-2 italic">Start a conversation to see history</p>
                                 ) : (
-                                    <div className="w-7 h-7 rounded-full bg-gray-800 flex items-center justify-center text-white text-xs font-bold">
-                                        {userName[0].toUpperCase()}
+                                    <div className="p-3 bg-indigo-50 border border-indigo-100 rounded-xl flex items-start gap-3">
+                                        <MessageSquare size={16} className="text-indigo-600 mt-0.5" />
+                                        <span className="text-sm font-medium text-indigo-900 truncate">Current Session</span>
                                     </div>
                                 )}
                             </div>
-                        )}
+                        </div>
+                    </div>
+
+                    <div className="p-6 border-t border-gray-100 bg-gray-50/50">
+                        <div className="flex items-center gap-3">
+                            <div className={`w-3 h-3 rounded-full ${connectionStatus === 'connected' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]'} animate-pulse`} />
+                            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                                System: {connectionStatus === 'connected' ? 'Ready' : 'Missing API Key'}
+                            </span>
+                        </div>
                     </div>
                 </div>
-            </div>
+            </aside>
 
-            {/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Main Chat Area â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-            <div className="flex-1 flex flex-col min-w-0">
-                {/* Top bar (toggle button when collapsed) */}
+            {/* Main Content Area */}
+            <main className="flex-1 flex flex-col relative overflow-hidden">
+                {/* Collapsed Sidebar Trigger */}
                 {!sidebarOpen && (
-                    <div className="px-4 py-2 border-b border-gray-200 bg-white flex items-center gap-3">
-                        <button
-                            onClick={() => setSidebarOpen(true)}
-                            className="p-2 rounded-xl hover:bg-gray-100 text-gray-500 transition-colors"
-                            title="Open sidebar"
-                        >
-                            <PanelLeftOpen size={18} />
-                        </button>
-                        <span className="text-sm text-gray-500 font-medium">Yene Learn AI</span>
+                    <button
+                        onClick={() => setSidebarOpen(true)}
+                        className="absolute left-6 top-6 z-10 p-3 bg-white border border-gray-200 rounded-xl shadow-lg hover:bg-gray-50 transition-all"
+                    >
+                        <PanelLeftOpen size={20} className="text-gray-600" />
+                    </button>
+                )}
+
+                {/* API Key Warning Bar */}
+                {isApiKeyMissing && (
+                    <div className="bg-amber-50 border-b border-amber-200 px-6 py-3 flex items-center justify-center gap-3 animate-slide-down">
+                        <AlertCircle className="text-amber-600" size={18} />
+                        <p className="text-sm text-amber-800 font-medium leading-none">
+                            <span className="font-bold">Setup Required:</span> Add your <code className="bg-amber-100 px-1.5 py-0.5 rounded border border-amber-200">VITE_OPENROUTER_API_KEY</code> to the <code className="font-bold">.env</code> file to enable AI Chat.
+                        </p>
+                        <a href="https://openrouter.ai/keys" target="_blank" rel="noreferrer" className="flex items-center gap-1 text-xs font-bold text-amber-900 underline ml-2">
+                            Get Key <ExternalLink size={12} />
+                        </a>
                     </div>
                 )}
 
-                {!hasConversation ? (
-                    /* â”€â”€â”€ Empty State â”€â”€â”€ */
-                    <div className="flex-1 flex items-center justify-center overflow-y-auto">
-                        <div className="max-w-3xl w-full px-6 py-12">
-                            <div className="text-center mb-12">
-                                <div className="flex items-center justify-center mb-6">
-                                    <div className="relative">
-                                        <img src={logoImg} alt="Yene Learn" className="w-32 h-32 object-contain animate-float" />
-                                        <div className="absolute -bottom-2 -right-2 w-6 h-6 bg-green-500 rounded-full border-4 border-white"></div>
+                {/* Messages Container */}
+                <div className="flex-1 overflow-y-auto px-6 py-10">
+                    <div className="max-w-3xl mx-auto w-full space-y-8">
+                        {messages.length <= 1 && (
+                            <div className="text-center py-12 animate-fade-in">
+                                <div className="inline-flex items-center justify-center w-24 h-24 bg-indigo-600 rounded-3xl shadow-xl mb-8 transform hover:rotate-6 transition-transform">
+                                    <Sparkles size={48} className="text-white fill-white/20" />
+                                </div>
+                                <h1 className="text-4xl font-black text-gray-900 mb-4">How can I help you learn today?</h1>
+                                <p className="text-gray-500 max-w-md mx-auto mb-12 text-lg">
+                                    Ask me anything about your courses, complex topics, or request a personalized study plan.
+                                </p>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
+                                    {suggestions.map((s, i) => (
+                                        <button
+                                            key={i}
+                                            onClick={() => setInput(s)}
+                                            className="p-5 bg-white border border-gray-200 rounded-2xl hover:border-indigo-500 hover:shadow-xl hover:shadow-indigo-500/5 transition-all group"
+                                        >
+                                            <div className="flex items-center justify-between">
+                                                <p className="text-sm font-semibold text-gray-700 group-hover:text-indigo-900">{s}</p>
+                                                <ChevronRight size={16} className="text-gray-300 group-hover:text-indigo-500 transform group-hover:translate-x-1 transition-all" />
+                                            </div>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {messages.map((message, idx) => (
+                            <div key={idx} className={`flex items-start gap-5 ${message.sender === 'user' ? 'flex-row-reverse' : ''} animate-in fade-in duration-500`}>
+                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm ${message.sender === 'user'
+                                    ? 'bg-gray-100 text-gray-600'
+                                    : 'bg-indigo-600 text-white shadow-indigo-200'
+                                    }`}>
+                                    {message.sender === 'user' ? <BookOpen size={20} /> : <Zap size={20} className="fill-white/20" />}
+                                </div>
+
+                                <div className={`flex flex-col max-w-[85%] ${message.sender === 'user' ? 'items-end' : 'items-start'}`}>
+                                    <div className={`p-6 rounded-2xl shadow-sm border ${message.sender === 'user'
+                                        ? 'bg-white border-gray-100 rounded-tr-none'
+                                        : 'bg-white border-indigo-50 rounded-tl-none'
+                                        }`}>
+                                        <FormattedContent content={message.content} />
+                                    </div>
+                                    <div className="mt-2 flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">
+                                        {message.sender === 'ai' ? 'Yene Assistant' : 'You'} • {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                     </div>
                                 </div>
-                                <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-2 font-heading">
-                                    {getGreeting()}, <span className="text-gray-500">{userName}</span>
-                                </h1>
-                                <h2 className="text-2xl md:text-3xl font-bold text-gray-300 mb-4 font-heading">
-                                    What would you like to learn?
-                                </h2>
-                                <p className="text-gray-400 text-sm">Pick a suggestion or type your own</p>
                             </div>
+                        ))}
 
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-2xl mx-auto mb-6">
-                                {suggestedPrompts.map((prompt, index) => (
-                                    <button
-                                        key={`${index}-${refreshKey}`}
-                                        onClick={() => handlePromptClick(prompt.text)}
-                                        className="group text-left p-4 bg-white rounded-2xl border border-gray-200 hover:border-gray-300 hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5 active:scale-[0.98]"
-                                    >
-                                        <p className="text-sm text-gray-700 font-medium leading-relaxed mb-2">{prompt.text}</p>
-                                        <span className="text-base">{prompt.icon}</span>
-                                    </button>
-                                ))}
+                        {isLoading && (
+                            <div className="flex items-start gap-5 animate-pulse">
+                                <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center shrink-0">
+                                    <Sparkles size={18} className="text-indigo-300" />
+                                </div>
+                                <div className="bg-white border border-indigo-50 p-6 rounded-2xl rounded-tl-none shadow-sm min-w-[12rem]">
+                                    <div className="flex gap-2">
+                                        <div className="w-1.5 h-1.5 bg-indigo-200 rounded-full animate-bounce" />
+                                        <div className="w-1.5 h-1.5 bg-indigo-300 rounded-full animate-bounce [animation-delay:0.2s]" />
+                                        <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce [animation-delay:0.4s]" />
+                                    </div>
+                                </div>
                             </div>
+                        )}
+                        <div ref={messagesEndRef} />
+                    </div>
+                </div>
 
-                            <div className="text-center mb-8">
+                {/* Input Workspace */}
+                <div className="px-6 pb-10">
+                    <div className="max-w-3xl mx-auto w-full relative">
+                        <div className="bg-white border border-gray-200 rounded-3xl p-2 shadow-2xl shadow-gray-200/50 flex flex-col focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-50 transition-all overflow-hidden group">
+                            <textarea
+                                ref={inputRef}
+                                rows={1}
+                                value={input}
+                                onChange={(e) => setInput(e.target.value)}
+                                onKeyDown={handleKeyDown}
+                                className="w-full bg-transparent border-none focus:ring-0 p-4 min-h-[50px] max-h-48 text-gray-800 placeholder-gray-400 text-base font-medium resize-none custom-scrollbar"
+                                placeholder="Ask your learning question here..."
+                            />
+
+                            <div className="flex items-center justify-between border-t border-gray-50 px-4 py-2 bg-gray-50/50">
+                                <div className="flex items-center gap-4 text-gray-400">
+                                    <div className="flex items-center gap-1.5 hover:text-gray-600 transition-colors cursor-help group/tip relative">
+                                        <ShieldCheck size={14} />
+                                        <span className="text-[10px] font-bold uppercase tracking-wider">Privacy Ensured</span>
+                                    </div>
+                                    <span className="w-px h-3 bg-gray-200" />
+                                    <div className="flex items-center gap-1.5 hover:text-gray-600 transition-colors">
+                                        <Info size={14} />
+                                        <span className="text-[10px] font-bold uppercase tracking-wider">Shift+Enter for break</span>
+                                    </div>
+                                </div>
+
                                 <button
-                                    onClick={() => setRefreshKey(prev => prev + 1)}
-                                    className="inline-flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                                    onClick={handleSendMessage}
+                                    disabled={!input.trim() || isLoading}
+                                    className="flex items-center justify-center w-10 h-10 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-200 disabled:text-gray-400 text-white rounded-2xl shadow-lg shadow-indigo-200 transition-all active:scale-90"
                                 >
-                                    <RefreshCw size={12} />
-                                    Refresh
+                                    <Send size={18} />
                                 </button>
                             </div>
-
-                            {/* Input */}
-                            <div className="max-w-2xl mx-auto">
-                                <div className="bg-white rounded-2xl border border-gray-200 shadow-lg overflow-hidden focus-within:ring-2 focus-within:ring-gray-200 focus-within:border-gray-300 transition-all">
-                                    <div className="p-4">
-                                        <textarea
-                                            ref={inputRef}
-                                            className="w-full resize-none border-0 outline-none text-gray-800 placeholder-gray-400 text-base"
-                                            placeholder="Ask whatever you wantâ€¦"
-                                            rows={2}
-                                            value={input}
-                                            onChange={handleInputChange}
-                                            onKeyDown={handleKeyDown}
-                                        />
-                                    </div>
-                                    <div className="flex items-center justify-between px-4 py-2.5 border-t border-gray-100 bg-gray-50/50">
-                                        <span className="text-[11px] text-gray-400">{charCount > 0 ? `${charCount}/${MAX_CHARS}` : 'Shift+Enter for newline'}</span>
-                                        <button
-                                            onClick={handleSendMessage}
-                                            disabled={!input.trim() || isLoading}
-                                            className="w-9 h-9 flex items-center justify-center rounded-xl bg-gray-900 text-white hover:bg-black disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed transition-all duration-200 active:scale-95"
-                                        >
-                                            <Send size={16} />
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
                         </div>
                     </div>
-                ) : (
-                    /* â”€â”€â”€ Active Conversation â”€â”€â”€ */
-                    <>
-                        <div className="flex-1 overflow-y-auto">
-                            <div className="max-w-3xl mx-auto px-6 py-6">
-                                {messages.map((message) => (
-                                    <div key={message.id} className="mb-6 animate-in">
-                                        {message.sender === 'user' ? (
-                                            /* User bubble */
-                                            <div className="flex justify-end">
-                                                <div className="max-w-[75%]">
-                                                    <div className="bg-gray-900 text-white px-5 py-3 rounded-2xl rounded-br-sm text-sm leading-relaxed">
-                                                        {message.content}
-                                                    </div>
-                                                    <div className="text-[11px] text-gray-400 mt-1 text-right">
-                                                        {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ) : message.context === 'learning-plan' ? (
-                                            /* Learning plan */
-                                            <div className="flex gap-3 group">
-                                                <div className="flex-shrink-0 w-8 h-8 mt-1">
-                                                    <img src={logoImg} alt="" className="w-8 h-8 object-contain" />
-                                                </div>
-                                                <div className="max-w-[85%] min-w-0">
-                                                    <div className="bg-white border border-gray-200 rounded-2xl rounded-bl-sm p-5 shadow-sm">
-                                                        <div className="flex items-center justify-between mb-3">
-                                                            <div className="flex items-center gap-2">
-                                                                <BookOpen size={15} className="text-gray-700" />
-                                                                <span className="font-semibold text-gray-900 text-sm">Learning Plan</span>
-                                                            </div>
-                                                            {savedPlans.has(message.id) ? (
-                                                                <span className="text-green-600 flex items-center text-xs font-medium">
-                                                                    <CheckCheck size={14} className="mr-1" />Saved
-                                                                </span>
-                                                            ) : (
-                                                                <button
-                                                                    onClick={() => saveLearningPlan(message.id)}
-                                                                    className="text-gray-500 hover:text-gray-900 text-xs flex items-center font-medium transition-colors"
-                                                                >
-                                                                    <Save size={14} className="mr-1" />Save
-                                                                </button>
-                                                            )}
-                                                        </div>
-                                                        <FormattedContent content={message.content} />
-                                                    </div>
-                                                    <AIMessageActions content={message.content} messageId={message.id} />
-                                                    <div className="text-[11px] text-gray-400 mt-1">
-                                                        {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            /* AI response */
-                                            <div className="flex gap-3 group">
-                                                <div className="flex-shrink-0 w-8 h-8 mt-1">
-                                                    <img src={logoImg} alt="" className="w-8 h-8 object-contain" />
-                                                </div>
-                                                <div className="max-w-[85%] min-w-0">
-                                                    <div className="bg-white border border-gray-200 rounded-2xl rounded-bl-sm px-5 py-4 shadow-sm">
-                                                        <FormattedContent content={message.content} />
-                                                    </div>
-                                                    <AIMessageActions content={message.content} messageId={message.id} />
-                                                    <div className="text-[11px] text-gray-400 mt-1">
-                                                        {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                ))}
-
-                                {/* Thinking indicator */}
-                                {isLoading && (
-                                    <div className="flex gap-3 mb-6">
-                                        <div className="flex-shrink-0 w-8 h-8 mt-1">
-                                            <img src={logoImg} alt="" className="w-8 h-8 object-contain" />
-                                        </div>
-                                        <div className="bg-white border border-gray-200 rounded-2xl rounded-bl-sm px-5 py-3.5 shadow-sm">
-                                            <div className="flex items-center gap-3">
-                                                <div className="flex gap-1">
-                                                    <div className="w-2 h-2 bg-gray-800 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                                                    <div className="w-2 h-2 bg-gray-600 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                                                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
-                                                </div>
-                                                <span className="text-sm text-gray-500">Generatingâ€¦</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-
-                                <div ref={messagesEndRef} />
-                            </div>
-                        </div>
-
-                        {/* Bottom input */}
-                        <div className="border-t border-gray-200 bg-white">
-                            <div className="max-w-3xl mx-auto px-6 py-3">
-                                <div className="bg-gray-50 rounded-2xl border border-gray-200 overflow-hidden focus-within:ring-2 focus-within:ring-gray-200 focus-within:border-gray-300 transition-all">
-                                    <div className="p-3 pb-0">
-                                        <textarea
-                                            ref={inputRef}
-                                            className="w-full resize-none border-0 outline-none text-gray-800 placeholder-gray-400 text-sm bg-transparent leading-relaxed"
-                                            placeholder="Ask a follow-upâ€¦"
-                                            rows={1}
-                                            value={input}
-                                            onChange={handleInputChange}
-                                            onKeyDown={handleKeyDown}
-                                        />
-                                    </div>
-                                    <div className="flex items-center justify-between px-3 py-2">
-                                        <span className="text-[11px] text-gray-400">
-                                            {charCount > 0 ? `${charCount}/${MAX_CHARS}` : 'Shift+Enter for newline'}
-                                        </span>
-                                        <button
-                                            onClick={handleSendMessage}
-                                            disabled={!input.trim() || isLoading}
-                                            className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-900 text-white hover:bg-black disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed transition-all duration-200 active:scale-95"
-                                        >
-                                            <Send size={14} />
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </>
-                )}
-            </div>
+                </div>
+            </main>
         </div>
     );
 };

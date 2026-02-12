@@ -99,7 +99,7 @@ const ChatWidget: React.FC = () => {
               <img src={logoImg} alt="Yene Learn" className="w-7 h-7 object-contain" />
               <div>
                 <h3 className="font-semibold text-sm">Yene Learn Assistant</h3>
-                <p className="text-[10px] text-gray-400">Always here to help you learn</p>
+                <p className="text-[10px] text-gray-400">Powered by DeepSeek AI</p>
               </div>
             </div>
             <div className="flex items-center gap-1">

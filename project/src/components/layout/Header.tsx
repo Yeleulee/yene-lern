@@ -183,9 +183,9 @@ const Header: React.FC = () => {
       }`}>
       <div className="container mx-auto px-4 flex items-center justify-between">
         {/* Clean Logo */}
-        <a href="/" className="flex items-center space-x-3 group">
+        <Link to="/" className="flex items-center space-x-3 group text-decoration-none">
           <img src={logoImg} alt="Yene Learn" className="w-12 h-12 object-contain transform group-hover:scale-110 transition-all duration-300 drop-shadow-sm" />
-        </a>
+        </Link>
 
         {/* Clean Navigation */}
         <nav className="hidden md:flex items-center space-x-8">
@@ -390,7 +390,7 @@ const Header: React.FC = () => {
             {/* Navigation Links */}
             <div className="px-4 py-2">
               <div className="space-y-1">
-                {user ? (
+                {user && (
                   <Link
                     to="/dashboard"
                     className={`flex items-center space-x-3 px-3 py-3 rounded-xl transition-all duration-300 active:scale-95 ${isActive('/dashboard')

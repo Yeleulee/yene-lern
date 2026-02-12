@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { UserVideo, Video, LearningStatus } from '../types';
-import { getUserVideos, saveVideo, updateVideoStatus, removeVideo, subscribeToUserVideos } from '../services/firebaseService';
+import { getUserVideos, saveVideo, updateVideoStatus, removeVideo, subscribeToUserVideos, updateVideoProgressState } from '../services/firebaseService';
 import { useAuth } from './AuthContext';
 
 interface LearningContextType {
@@ -11,6 +11,7 @@ interface LearningContextType {
   updateStatus: (videoId: string, status: LearningStatus) => Promise<void>;
   getVideoById: (videoId: string) => UserVideo | undefined;
   removeVideo: (videoId: string) => Promise<void>;
+  saveProgress: (videoId: string, progress: number, currentTimestamp: number, completedSegmentIds: string[]) => Promise<void>;
 }
 
 const LearningContext = createContext<LearningContextType | undefined>(undefined);
@@ -41,7 +42,7 @@ export function LearningProvider({ children }: { children: ReactNode }) {
           setUserVideos(parsed);
         }
       }
-    } catch {}
+    } catch { }
 
     // Mark loading only if we still have nothing to show
     setLoading((prev) => userVideos.length === 0 ? true : prev);
@@ -56,7 +57,7 @@ export function LearningProvider({ children }: { children: ReactNode }) {
         // Refresh cache
         try {
           localStorage.setItem(`yl_user_videos_${user.uid}`, JSON.stringify(videos));
-        } catch {}
+        } catch { }
       },
       (err) => {
         console.error('Video subscription error:', err);
@@ -78,7 +79,7 @@ export function LearningProvider({ children }: { children: ReactNode }) {
     try {
       // Avoid global loading flicker during add; let UI stay interactive
       setError(null);
-      
+
       const userVideo: UserVideo = {
         ...video,
         status: 'to-learn',
@@ -94,17 +95,17 @@ export function LearningProvider({ children }: { children: ReactNode }) {
 
       await saveVideo(user.uid, userVideo);
       console.log('Video saved successfully:', video.id);
-      
+
       return Promise.resolve();
     } catch (error) {
       console.error('Error adding video:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to save video';
       setError(errorMessage);
-      
+
       // Remove from optimistic UI if save failed
       setUserVideos((prev) => prev.filter(v => v.id !== video.id));
       throw new Error(errorMessage);
-    } finally {}
+    } finally { }
   };
 
   const updateStatus = async (videoId: string, status: LearningStatus) => {
@@ -115,20 +116,20 @@ export function LearningProvider({ children }: { children: ReactNode }) {
     try {
       // Avoid global loading flicker during update; optimistic update below
       await updateVideoStatus(user.uid, videoId, status);
-      
+
       setUserVideos((prev) =>
         prev.map((video) =>
           video.id === videoId ? { ...video, status } : video
         )
       );
-      
+
       return Promise.resolve(); // Ensure we always return a resolved promise
     } catch (error) {
       console.error('Error updating video status:', error);
       setError(error instanceof Error ? error.message : 'Failed to update video status');
       // Don't throw the error upward - return resolved promise to prevent UI crashes
       return Promise.resolve();
-    } finally {}
+    } finally { }
   };
 
   const handleRemoveVideo = async (videoId: string) => {
@@ -139,21 +140,52 @@ export function LearningProvider({ children }: { children: ReactNode }) {
     try {
       // Avoid global loading flicker during remove; optimistic update below
       await removeVideo(user.uid, videoId);
-      
+
       // Update state by removing the video
       setUserVideos((prev) => prev.filter((video) => video.id !== videoId));
-      
+
       return Promise.resolve(); // Ensure we always return a resolved promise
     } catch (error) {
       console.error('Error removing video:', error);
       setError(error instanceof Error ? error.message : 'Failed to remove video');
       // Don't throw the error upward - return resolved promise to prevent UI crashes
       return Promise.resolve();
-    } finally {}
+    } finally { }
   };
 
   const getVideoById = (videoId: string) => {
     return userVideos.find((video) => video.id === videoId);
+  };
+
+  const saveProgress = async (
+    videoId: string,
+    progress: number,
+    currentTimestamp: number,
+    completedSegmentIds: string[]
+  ) => {
+    if (!user) return;
+
+    // Optimistic update
+    setUserVideos(prev => prev.map(v => {
+      if (v.id === videoId) {
+        return {
+          ...v,
+          progress,
+          currentTimestamp,
+          completedSegmentIds,
+          status: progress >= 95 ? 'completed' : (v.status === 'completed' ? 'completed' : 'in-progress')
+        };
+      }
+      return v;
+    }));
+
+    try {
+      await updateVideoProgressState(user.uid, videoId, {
+        progress, currentTimestamp, completedSegmentIds
+      });
+    } catch (e) {
+      console.error('Error saving progress:', e);
+    }
   };
 
   // After login, complete any pending save started before auth
@@ -173,7 +205,7 @@ export function LearningProvider({ children }: { children: ReactNode }) {
         .finally(() => {
           sessionStorage.removeItem('pending_save_video');
         });
-    } catch {}
+    } catch { }
     // Only run on login and when list changes to avoid duplicates
   }, [user, userVideos]);
 
@@ -187,6 +219,7 @@ export function LearningProvider({ children }: { children: ReactNode }) {
         updateStatus,
         getVideoById,
         removeVideo: handleRemoveVideo,
+        saveProgress,
       }}
     >
       {children}

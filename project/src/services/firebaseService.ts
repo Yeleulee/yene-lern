@@ -259,6 +259,8 @@ export async function getUserVideos(userId: string): Promise<UserVideo[]> {
         status: data.status || 'to-learn',
         progress: typeof data.progress === 'number' ? data.progress : undefined,
         lastWatched: data.lastWatched ? (data.lastWatched instanceof Timestamp ? data.lastWatched.toDate().toISOString() : data.lastWatched) : undefined,
+        completedSegmentIds: data.completedSegmentIds || [],
+        currentTimestamp: data.currentTimestamp || 0,
       });
     });
     return results;
@@ -292,6 +294,8 @@ export function subscribeToUserVideos(
             status: data.status || 'to-learn',
             progress: typeof data.progress === 'number' ? data.progress : undefined,
             lastWatched: data.lastWatched ? (data.lastWatched instanceof Timestamp ? data.lastWatched.toDate().toISOString() : data.lastWatched) : undefined,
+            completedSegmentIds: data.completedSegmentIds || [],
+            currentTimestamp: data.currentTimestamp || 0,
           });
         });
         onChange(results);
@@ -798,5 +802,52 @@ export async function removeVideo(userId: string, videoId: string): Promise<void
     console.error('Error removing video:', error);
     // Return a resolved promise to prevent UI from breaking
     return Promise.resolve();
+  }
+}
+
+// Update detailed video progress state (timestamp, segments)
+export async function updateVideoProgressState(
+  userId: string,
+  videoId: string,
+  state: {
+    currentTimestamp: number;
+    completedSegmentIds: string[];
+    progress: number;
+  }
+): Promise<void> {
+  try {
+    if (!userId || !videoId) return;
+
+    const videoRef = doc(db, `users/${userId}/videos/${videoId}`);
+    const docSnap = await getDoc(videoRef);
+
+    if (docSnap.exists()) {
+      const data = docSnap.data();
+      const newStatus = state.progress >= 95 ? 'completed' : (data.status === 'completed' ? 'completed' : 'in-progress');
+
+      await updateDoc(videoRef, {
+        currentTimestamp: state.currentTimestamp,
+        completedSegmentIds: state.completedSegmentIds,
+        progress: state.progress,
+        lastWatched: serverTimestamp(),
+        status: newStatus
+      });
+
+      // Update stats if newly completed
+      if (newStatus === 'completed' && data.status !== 'completed') {
+        const userStatsRef = doc(db, 'userStats', userId);
+        // Create or update stats
+        try {
+          await updateDoc(userStatsRef, {
+            completedVideos: increment(1),
+            lastActive: serverTimestamp()
+          });
+        } catch (e) {
+          // Ignore if stats doc doesn't exist (rare)
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error updating video progress state:', error);
   }
 }
