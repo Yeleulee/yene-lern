@@ -17,13 +17,13 @@ const Button: React.FC<ButtonProps> = ({
 }) => {
   const baseClasses = 'btn';
   const variantClasses = {
-    primary: 'btn-primary',
-    secondary: 'btn-secondary',
-    outline: 'btn-outline',
-    ghost: 'btn-ghost',
-    success: 'btn-success',
+    primary: 'bg-gray-900/90 backdrop-blur-md text-white border border-gray-700/50 shadow-lg hover:bg-gray-800 hover:shadow-xl hover:scale-[1.02] active:scale-95 transition-all duration-300',
+    secondary: 'bg-indigo-600/90 backdrop-blur-md text-white hover:bg-indigo-700 hover:shadow-lg hover:scale-[1.02] active:scale-95 transition-all duration-300',
+    outline: 'bg-white/80 backdrop-blur-md border border-gray-200 text-gray-900 shadow-sm hover:bg-white hover:scale-[1.02] active:scale-95 transition-all duration-300',
+    ghost: 'text-gray-700 hover:bg-gray-100/50 hover:backdrop-blur-sm transition-all duration-200',
+    success: 'bg-green-600/90 backdrop-blur-md text-white hover:bg-green-700 hover:shadow-lg transition-all duration-300',
   };
-  
+
   const sizeClasses = {
     sm: 'text-xs px-3 py-1',
     md: 'text-sm px-4 py-2',

@@ -1,9 +1,9 @@
 import { User, UserVideo, LearningStatus } from '../types';
 import { initializeApp } from 'firebase/app';
-import { 
-  getAuth, 
+import {
+  getAuth,
   signInWithEmailAndPassword,
-  createUserWithEmailAndPassword, 
+  createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
   GoogleAuthProvider,
   signInWithPopup,
@@ -61,7 +61,7 @@ async function ensureUserDocument(user: User | null): Promise<User | null> {
     if (!user) return null;
     const userRef = doc(db, 'users', user.uid);
     const existing = await getDoc(userRef);
-    
+
     if (!existing.exists()) {
       const userData = {
         uid: user.uid,
@@ -115,7 +115,7 @@ export const initAuthStateListener = (callback: (user: User | null) => void) => 
         displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || '',
         photoURL: firebaseUser.photoURL || undefined
       };
-      
+
       // Ensure user document exists and get complete profile data
       const completeUser = await ensureUserDocument(baseUser);
       callback(completeUser);
@@ -131,7 +131,7 @@ export async function signIn(email: string, password: string): Promise<User | nu
   try {
     // Ensure persistence is set first
     await ensureAuthPersistence();
-    
+
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     const baseUser: User = {
       uid: userCredential.user.uid,
@@ -144,7 +144,7 @@ export async function signIn(email: string, password: string): Promise<User | nu
   } catch (error: any) {
     // Enhanced error logging for debugging
     console.error('Error signing in:', error.code, error.message);
-    throw new Error(error.message || 'Failed to login'); 
+    throw new Error(error.message || 'Failed to login');
   }
 }
 
@@ -152,7 +152,7 @@ export async function signUp(email: string, password: string): Promise<User | nu
   try {
     // Ensure persistence is set first
     await ensureAuthPersistence();
-    
+
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const baseUser: User = {
       uid: userCredential.user.uid,
@@ -173,17 +173,17 @@ export async function signInWithGoogle(): Promise<User | null> {
   try {
     // Ensure persistence is set first
     await ensureAuthPersistence();
-    
+
     // Configure Google provider with proper settings
     googleProvider.setCustomParameters({
       prompt: 'select_account',
       login_hint: ''
     });
-    
+
     // Add additional scopes if needed for your application
     googleProvider.addScope('profile');
     googleProvider.addScope('email');
-    
+
     // Try to use signInWithPopup - this works on most browsers
     try {
       const result = await signInWithPopup(auth, googleProvider);
@@ -199,7 +199,7 @@ export async function signInWithGoogle(): Promise<User | null> {
     } catch (popupError: any) {
       // If popup is blocked or fails, log detailed error for debugging
       console.error('Popup sign-in failed:', popupError.code, popupError.message);
-      
+
       // Throw with more specific error messages for proper handling
       if (popupError.code === 'auth/popup-blocked') {
         throw new Error('popup-blocked');
@@ -229,9 +229,9 @@ export async function signOut(): Promise<void> {
 // Retrieve current authenticated user (for checking auth state)
 export function getCurrentUser(): User | null {
   const currentUser = auth.currentUser;
-  
+
   if (!currentUser) return null;
-  
+
   return {
     uid: currentUser.uid,
     email: currentUser.email || '',
@@ -304,7 +304,7 @@ export function subscribeToUserVideos(
     return unsubscribe;
   } catch (error) {
     console.error('Failed to subscribe to user videos:', error);
-    return () => {};
+    return () => { };
   }
 }
 
@@ -319,27 +319,27 @@ export async function updateVideoStatus(
       console.error('Invalid parameters for updateVideoStatus:', { userId, videoId, status });
       throw new Error('Invalid parameters for updateVideoStatus');
     }
-    
-  console.log('Update video status:', userId, videoId, status);
-    
+
+    console.log('Update video status:', userId, videoId, status);
+
     // Create a reference to the user's video document
     const videoDocRef = doc(db, `users/${userId}/videos/${videoId}`);
-    
+
     // Check if the document exists
     const docSnap = await getDoc(videoDocRef);
-    
+
     if (docSnap.exists()) {
       // Update existing document
       await updateDoc(videoDocRef, {
         status: status,
         lastUpdated: serverTimestamp()
       });
-      
+
       // If the video is marked as completed, update user stats
       if (status === 'completed') {
         const userStatsRef = doc(db, 'userStats', userId);
         const userStatsDoc = await getDoc(userStatsRef);
-        
+
         if (userStatsDoc.exists()) {
           await updateDoc(userStatsRef, {
             completedVideos: increment(1),
@@ -366,7 +366,7 @@ export async function updateVideoStatus(
         lastUpdated: serverTimestamp()
       });
     }
-    
+
     return Promise.resolve(); // Explicitly return a resolved promise
   } catch (error) {
     console.error('Error updating video status:', error);
@@ -386,13 +386,13 @@ export async function saveVideo(userId: string, video: UserVideo): Promise<void>
     console.log('Saving video:', userId, video);
     // Ensure parent user document exists to satisfy typical Firestore rules
     await ensureUserDocument({ uid: userId, email: '', displayName: '', photoURL: undefined } as User);
-    
+
     // Create a reference to the user's videos collection
     const videoDocRef = doc(db, `users/${userId}/videos/${video.id}`);
-    
+
     // Check if the video already exists to avoid duplicate saves
     const existingDoc = await getDoc(videoDocRef);
-    
+
     if (existingDoc.exists()) {
       // If video already exists, just update the status
       await updateDoc(videoDocRef, {
@@ -406,11 +406,11 @@ export async function saveVideo(userId: string, video: UserVideo): Promise<void>
         dateAdded: serverTimestamp(),
         lastUpdated: serverTimestamp()
       });
-      
+
       // Create userStats document if it doesn't exist yet
       const userStatsRef = doc(db, 'userStats', userId);
       const userStatsDoc = await getDoc(userStatsRef);
-      
+
       if (userStatsDoc.exists()) {
         // Update existing user stats
         await updateDoc(userStatsRef, {
@@ -429,7 +429,7 @@ export async function saveVideo(userId: string, video: UserVideo): Promise<void>
         });
       }
     }
-    
+
     console.log('Video saved successfully');
     return Promise.resolve(); // Explicitly resolve the promise
   } catch (error) {
@@ -443,28 +443,28 @@ export async function saveVideo(userId: string, video: UserVideo): Promise<void>
 export async function updateUserProfile(userProfile: Partial<User>): Promise<User | null> {
   try {
     const currentUser = auth.currentUser;
-    
+
     if (!currentUser) {
       throw new Error('No authenticated user found');
     }
 
     console.log('Updating user profile:', userProfile);
-    
+
     // Handle profile picture update
     let photoURL = userProfile.photoURL;
-    
+
     // If the photoURL is a data URL (base64), upload it to Firebase Storage
     if (photoURL && photoURL.startsWith('data:image')) {
       // Create a reference to the user's profile picture
       const storageRef = ref(storage, `profile_pictures/${currentUser.uid}`);
-      
+
       // Upload the image
       await uploadString(storageRef, photoURL, 'data_url');
-      
+
       // Get the download URL
       photoURL = await getDownloadURL(storageRef);
     }
-    
+
     // If photoURL is explicitly null, remove the profile picture
     if (userProfile.photoURL === null) {
       try {
@@ -474,16 +474,16 @@ export async function updateUserProfile(userProfile: Partial<User>): Promise<Use
         console.log('No existing profile picture to delete');
       }
     }
-    
+
     // Update the Firebase user profile
     await firebaseUpdateProfile(currentUser, {
       displayName: userProfile.displayName || currentUser.displayName,
       photoURL: photoURL !== undefined ? photoURL : currentUser.photoURL
     });
-    
+
     // Force refresh the user object to get updated displayName
     await currentUser.reload();
-    
+
     // Also update the user document in Firestore with additional profile data
     const userDocRef = doc(db, 'users', currentUser.uid);
     const updateData = {
@@ -492,9 +492,9 @@ export async function updateUserProfile(userProfile: Partial<User>): Promise<Use
       learningPreferences: userProfile.learningPreferences || [],
       lastUpdated: serverTimestamp()
     };
-    
+
     console.log('Updating Firestore user document:', updateData);
-    
+
     try {
       await updateDoc(userDocRef, updateData);
     } catch (error: any) {
@@ -511,7 +511,7 @@ export async function updateUserProfile(userProfile: Partial<User>): Promise<Use
         throw error;
       }
     }
-    
+
     // Return the updated user object
     const updatedUser = {
       uid: currentUser.uid,
@@ -520,7 +520,7 @@ export async function updateUserProfile(userProfile: Partial<User>): Promise<Use
       photoURL: currentUser.photoURL || undefined,
       learningPreferences: userProfile.learningPreferences || []
     };
-    
+
     console.log('Profile updated successfully:', updatedUser);
     return updatedUser;
   } catch (error: any) {
@@ -534,21 +534,21 @@ export async function getLeaderboard(limit: number = 10): Promise<any[]> {
   try {
     const userStatsRef = collection(db, 'userStats');
     const leaderboardQuery = query(
-      userStatsRef, 
+      userStatsRef,
       orderBy('completedVideos', 'desc'),
       limit(limit)
     );
-    
+
     const snapshot = await getDocs(leaderboardQuery);
     const leaderboardData: any[] = [];
-    
+
     for (const doc of snapshot.docs) {
       const userData = doc.data();
-      
+
       // Get user profile data
       const userProfileRef = await getDoc(doc.ref.parent.parent);
       const profileData = userProfileRef.exists() ? userProfileRef.data() : {};
-      
+
       leaderboardData.push({
         uid: doc.id,
         displayName: profileData.displayName || `User-${doc.id.substring(0, 5)}`,
@@ -559,7 +559,7 @@ export async function getLeaderboard(limit: number = 10): Promise<any[]> {
         totalLearningTime: userData.totalLearningTime || 0
       });
     }
-    
+
     return leaderboardData;
   } catch (error) {
     console.error('Error fetching leaderboard:', error);
@@ -573,21 +573,21 @@ export async function getUserLeaderboardPosition(userId: string): Promise<number
     // Get the user's completedVideos count
     const userStatsRef = doc(db, 'userStats', userId);
     const userStatsDoc = await getDoc(userStatsRef);
-    
+
     if (!userStatsDoc.exists()) {
       return 0; // No stats yet
     }
-    
+
     const userCompletedVideos = userStatsDoc.data().completedVideos || 0;
-    
+
     // Count users with more completed videos
     const higherRankQuery = query(
       collection(db, 'userStats'),
       where('completedVideos', '>', userCompletedVideos)
     );
-    
+
     const higherRankSnapshot = await getDocs(higherRankQuery);
-    
+
     // User's position is the count of users with higher rank + 1
     return higherRankSnapshot.docs.length + 1;
   } catch (error) {
@@ -600,10 +600,10 @@ export async function getUserLeaderboardPosition(userId: string): Promise<number
 export async function updateLearningStats(userId: string, stats: any): Promise<void> {
   try {
     const userStatsRef = doc(db, 'userStats', userId);
-    
+
     // Check if document exists
     const docSnap = await getDoc(userStatsRef);
-    
+
     if (docSnap.exists()) {
       // Update existing document
       await updateDoc(userStatsRef, {
@@ -635,18 +635,18 @@ export async function trackVideoProgress(
     // Reference to the user's video document
     const videoRef = doc(db, `users/${userId}/videos/${videoId}`);
     const userStatsRef = doc(db, 'userStats', userId);
-    
+
     // Get current video data
     const videoDoc = await getDoc(videoRef);
-    
+
     if (videoDoc.exists()) {
       const videoData = videoDoc.data();
       const prevProgress = videoData.progress || 0;
       const wasCompleted = videoData.status === 'completed';
-      
+
       // Determine if video should be marked as completed
       const shouldMarkCompleted = progressPercent >= 90 && !wasCompleted;
-      
+
       // Update video progress
       await updateDoc(videoRef, {
         progress: progressPercent,
@@ -654,7 +654,7 @@ export async function trackVideoProgress(
         watchTimeSeconds: increment(watchTimeSeconds),
         status: shouldMarkCompleted ? 'completed' : (progressPercent > 10 ? 'in-progress' : videoData.status)
       });
-      
+
       // Update user stats
       if (shouldMarkCompleted) {
         await updateDoc(userStatsRef, {
@@ -668,7 +668,7 @@ export async function trackVideoProgress(
           lastActive: serverTimestamp()
         });
       }
-      
+
       // Update learning streak if needed
       await updateLearningStreak(userId);
     } else {
@@ -681,14 +681,14 @@ export async function trackVideoProgress(
         lastWatched: serverTimestamp(),
         dateAdded: serverTimestamp()
       });
-      
+
       // Update user stats for a new video
       await updateDoc(userStatsRef, {
         totalLearningTime: increment(watchTimeSeconds),
         lastActive: serverTimestamp(),
         completedVideos: progressPercent >= 90 ? increment(1) : increment(0)
       });
-      
+
       // Update learning streak
       await updateLearningStreak(userId);
     }
@@ -703,7 +703,7 @@ async function updateLearningStreak(userId: string): Promise<void> {
   try {
     const userStatsRef = doc(db, 'userStats', userId);
     const userStatsDoc = await getDoc(userStatsRef);
-    
+
     if (!userStatsDoc.exists()) {
       // Create initial stats if they don't exist
       await setDoc(userStatsRef, {
@@ -713,16 +713,16 @@ async function updateLearningStreak(userId: string): Promise<void> {
       });
       return;
     }
-    
+
     const stats = userStatsDoc.data();
     const lastUpdate = stats.lastStreakUpdate?.toDate() || new Date(0);
     const today = new Date();
-    
+
     // Reset date times to beginning of day for comparison
     const lastUpdateDay = new Date(lastUpdate).setHours(0, 0, 0, 0);
     const todayDay = new Date(today).setHours(0, 0, 0, 0);
     const yesterdayDay = new Date(today).setHours(-24, 0, 0, 0);
-    
+
     // Calculate the streak
     if (lastUpdateDay === todayDay) {
       // Already updated today, no change needed
@@ -755,44 +755,44 @@ export async function removeVideo(userId: string, videoId: string): Promise<void
     }
 
     console.log('Removing video:', userId, videoId);
-    
+
     // Create a reference to the user's video document
     const videoDocRef = doc(db, `users/${userId}/videos/${videoId}`);
-    
+
     // Check if the document exists
     const docSnap = await getDoc(videoDocRef);
-    
+
     if (docSnap.exists()) {
       // Get the current status of the video to update stats
       const videoData = docSnap.data();
       const status = videoData.status;
-      
+
       // Delete the video document
       await deleteDoc(videoDocRef);
-      
+
       // Update user stats if necessary
       const userStatsRef = doc(db, 'userStats', userId);
       const userStatsDoc = await getDoc(userStatsRef);
-      
+
       if (userStatsDoc.exists()) {
         const updateData: any = {
           savedVideos: increment(-1),
           lastActive: serverTimestamp()
         };
-        
+
         // If it was a completed video, decrement the completed count
         if (status === 'completed') {
           updateData.completedVideos = increment(-1);
         }
-        
+
         await updateDoc(userStatsRef, updateData);
       }
-      
+
       console.log('Video removed successfully');
     } else {
       console.log('Video does not exist, nothing to remove');
     }
-    
+
     return Promise.resolve(); // Explicitly resolve the promise
   } catch (error) {
     console.error('Error removing video:', error);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+﻿import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import SearchBar from '../components/search/SearchBar';
 import VideoCard from '../components/video/VideoCard';
@@ -231,7 +231,7 @@ const ExplorePage: React.FC = () => {
               EXPLORE COURSES
             </div>
             
-            <h1 className="text-4xl md:text-6xl font-light text-gray-900 mb-6 animate-slide-up" style={{ fontFamily: 'Dancing Script, cursive' }}>
+            <h1 className="text-4xl md:text-6xl font-light text-gray-900 mb-6 animate-slide-up">
               Find Your Perfect
               <span className="block">Learning Course</span>
             </h1>
@@ -273,7 +273,7 @@ const ExplorePage: React.FC = () => {
             >
               <option value="all">All durations</option>
               <option value="short">Short (&lt; 20 min)</option>
-              <option value="medium">Medium (20–120 min)</option>
+              <option value="medium">Medium (20â€“120 min)</option>
               <option value="long">Long (&gt; 120 min)</option>
             </select>
             <select
@@ -353,7 +353,7 @@ const ExplorePage: React.FC = () => {
                 >
                   <option value="all">All durations</option>
                   <option value="short">Short (&lt; 20 min)</option>
-                  <option value="medium">Medium (20–120 min)</option>
+                  <option value="medium">Medium (20â€“120 min)</option>
                   <option value="long">Long (&gt; 120 min)</option>
                 </select>
               </div>
@@ -411,7 +411,7 @@ const ExplorePage: React.FC = () => {
         <>
             {/* Sleek Featured Categories */}
             <div className="mb-16">
-              <h2 className="text-3xl font-light text-gray-900 mb-8 flex items-center justify-center" style={{ fontFamily: 'Dancing Script, cursive' }}>
+              <h2 className="text-3xl font-light text-gray-900 mb-8 flex items-center justify-center">
                 <Compass className="mr-3 text-gray-600" />
                 Featured Categories
               </h2>
@@ -434,7 +434,7 @@ const ExplorePage: React.FC = () => {
             {/* Sleek Trending Courses */}
             <div className="mb-16">
               <div className="flex items-center justify-between mb-8">
-                <h2 className="text-3xl font-light text-gray-900 flex items-center" style={{ fontFamily: 'Dancing Script, cursive' }}>
+                <h2 className="text-3xl font-light text-gray-900 flex items-center">
                   <TrendingUp className="mr-3 text-gray-600" />
                   Trending Courses
                 </h2>
@@ -496,7 +496,7 @@ const ExplorePage: React.FC = () => {
             
             {/* Sleek Popular Topics */}
             <div className="mb-16">
-              <h2 className="text-3xl font-light text-gray-900 mb-8 flex items-center justify-center" style={{ fontFamily: 'Dancing Script, cursive' }}>
+              <h2 className="text-3xl font-light text-gray-900 mb-8 flex items-center justify-center">
                 <BookOpen className="mr-3 text-gray-600" />
                 Popular Course Topics
               </h2>

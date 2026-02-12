@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+﻿import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { BookOpen, Clock, CheckCircle, Search, MessageCircle, X } from 'lucide-react';
 import { useLearning } from '../context/LearningContext';
@@ -135,7 +135,7 @@ const MyLearningPage: React.FC = () => {
               <BookOpen size={16} />
               MY LEARNING DASHBOARD
         </div>
-            <h1 className="text-4xl md:text-6xl font-light text-gray-900 mb-6 animate-fade-in" style={{ fontFamily: 'Dancing Script, cursive' }}>
+            <h1 className="text-4xl md:text-6xl font-light text-gray-900 mb-6 animate-fade-in">
               Your Learning Journey
             </h1>
             <p className="text-lg md:text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
@@ -166,19 +166,19 @@ const MyLearningPage: React.FC = () => {
         <div className="mb-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 animate-slide-up">
           <div className="bg-gray-50 rounded-3xl p-8 text-center hover:bg-white hover:shadow-lg transition-all duration-500 border border-transparent hover:border-gray-200">
             <div className="text-sm font-medium text-gray-500 mb-3">Total Saved</div>
-            <div className="text-4xl font-light text-gray-900 mb-2" style={{ fontFamily: 'Dancing Script, cursive' }}>{userVideos.length}</div>
+            <div className="text-4xl font-light text-gray-900 mb-2">{userVideos.length}</div>
           </div>
           <div className="bg-gray-50 rounded-3xl p-8 text-center hover:bg-white hover:shadow-lg transition-all duration-500 border border-transparent hover:border-gray-200">
             <div className="text-sm font-medium text-gray-500 mb-3">To Learn</div>
-            <div className="text-4xl font-light text-gray-900 mb-2" style={{ fontFamily: 'Dancing Script, cursive' }}>{statusCounts['to-learn']}</div>
+            <div className="text-4xl font-light text-gray-900 mb-2">{statusCounts['to-learn']}</div>
           </div>
           <div className="bg-gray-50 rounded-3xl p-8 text-center hover:bg-white hover:shadow-lg transition-all duration-500 border border-transparent hover:border-gray-200">
             <div className="text-sm font-medium text-gray-500 mb-3">In Progress</div>
-            <div className="text-4xl font-light text-gray-900 mb-2" style={{ fontFamily: 'Dancing Script, cursive' }}>{statusCounts['in-progress']}</div>
+            <div className="text-4xl font-light text-gray-900 mb-2">{statusCounts['in-progress']}</div>
           </div>
           <div className="bg-gray-50 rounded-3xl p-8 text-center hover:bg-white hover:shadow-lg transition-all duration-500 border border-transparent hover:border-gray-200">
             <div className="text-sm font-medium text-gray-500 mb-3">Completed</div>
-            <div className="text-4xl font-light text-gray-900 mb-2" style={{ fontFamily: 'Dancing Script, cursive' }}>{statusCounts['completed']}</div>
+            <div className="text-4xl font-light text-gray-900 mb-2">{statusCounts['completed']}</div>
           </div>
         </div>
 
@@ -226,7 +226,7 @@ const MyLearningPage: React.FC = () => {
               aria-label="Sort my learning"
             >
               <option value="recommended">Recommended</option>
-              <option value="title">Title (A–Z)</option>
+              <option value="title">Title (Aâ€“Z)</option>
             </select>
           </div>
                   </div>
