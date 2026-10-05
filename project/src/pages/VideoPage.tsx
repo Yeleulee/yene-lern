@@ -16,6 +16,7 @@ import { getVideoDetails } from '../services/youtubeService';
 import { generateVideoSummary } from '../services/deepSeekService';
 import { Video, VideoSummary } from '../types';
 import { getCourseSectionByVideoId, getCourseById } from '../data/mockCourseData';
+import { parseVideoChapters } from '../components/video/videoChapters';
 
 const VideoPage: React.FC = () => {
   const { videoId = '' } = useParams<{ videoId: string }>();
@@ -75,9 +76,12 @@ const VideoPage: React.FC = () => {
   }, [location.search, videoId]);
 
   useEffect(() => {
+    let cancelled = false;
+
     async function loadVideoAndSummary() {
       setIsLoading(true);
       setCourseError(null);
+      setVideo(null);
       try {
         // Check if this video is part of a course
         const courseData = getCourseSectionByVideoId(videoId);
@@ -107,6 +111,7 @@ const VideoPage: React.FC = () => {
 
         // For both course and non-course videos, load the video details
         const videoDetails = await getVideoDetails(videoId);
+        if (cancelled) return;
         if (videoDetails) {
           setVideo(videoDetails);
 
@@ -116,46 +121,34 @@ const VideoPage: React.FC = () => {
             videoDetails.title,
             videoDetails.description
           );
-          setVideoSummary(summary);
+          if (!cancelled) setVideoSummary(summary);
         }
       } catch (error) {
-        console.error('Error loading video details:', error);
+        if (!cancelled) console.error('Error loading video details:', error);
       } finally {
-        setIsLoading(false);
-        setIsSummaryLoading(false);
+        if (!cancelled) {
+          setIsLoading(false);
+          setIsSummaryLoading(false);
+        }
       }
     }
 
     if (videoId) {
       loadVideoAndSummary();
     }
+
+    return () => {
+      cancelled = true;
+    };
   }, [videoId, courseId]);
 
   // Add a function to parse segments
   useEffect(() => {
-    if (video?.description) {
-      const timestampRegex = /(?:\[)?(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\])?(?:\s?[-–—]\s?|\s)([^\r\n]+)/gm;
-      const parsedSegments: { startTime: number; title: string }[] = [];
-      let match;
-
-      // Find all timestamps in the description
-      while ((match = timestampRegex.exec(video.description)) !== null) {
-        const hours = match[3] ? parseInt(match[1]) : 0;
-        const minutes = match[3] ? parseInt(match[2]) : parseInt(match[1]);
-        const seconds = match[3] ? parseInt(match[3]) : parseInt(match[2]);
-        const title = match[4].trim();
-
-        // Calculate start time in seconds
-        const startTime = hours * 3600 + minutes * 60 + seconds;
-
-        parsedSegments.push({ startTime, title });
-      }
-
-      // Sort segments chronologically
-      parsedSegments.sort((a, b) => a.startTime - b.startTime);
-      setVideoSegments(parsedSegments);
-    }
-  }, [video?.description]);
+    setVideoSegments(
+      parseVideoChapters(video?.description || '', videoId, videoDuration)
+        .map(({ startTime, title }) => ({ startTime, title }))
+    );
+  }, [video?.description, videoId, videoDuration]);
 
   const handleSaveVideo = async () => {
     if (user && video) {
@@ -293,7 +286,7 @@ const VideoPage: React.FC = () => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  if (isLoading) {
+  if (isLoading || video?.id !== videoId) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="animate-pulse">
@@ -351,9 +344,10 @@ const VideoPage: React.FC = () => {
     );
   }
 
-  // For course videos OR any video with detected segments, display the segmented player
-  if (isPartOfCourse || (videoSegments && videoSegments.length > 0)) {
+  // All videos use the classroom player; it supplies a full-video fallback when no chapters exist.
+  if (isPartOfCourse || video) {
     return <SegmentedVideoPlayer
+      key={videoId}
       videoId={videoId}
       title={video.title}
       description={video.description || ''}

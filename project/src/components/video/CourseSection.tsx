@@ -25,6 +25,7 @@ import TimestampParser from './TimestampParser';
 import { Video } from '../../types';
 import VideoSegments from './VideoSegments';
 import VideoPlayer, { VideoPlayerHandle } from './VideoPlayer';
+import { parseVideoChapters } from './videoChapters';
 
 interface CourseSectionProps {
   courseId?: string;
@@ -243,29 +244,13 @@ const CourseSection: React.FC<CourseSectionProps> = ({ courseId, videoId, video 
   
   // Parse timestamps to create segments
   useEffect(() => {
-    if (currentSection?.description) {
-      const timestampRegex = /(?:\[)?(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\])?(?:\s?[-–—]\s?|\s)([^\r\n]+)/gm;
-      const parsedSegments: { startTime: number; title: string }[] = [];
-      let match;
-      
-      // Find all timestamps in the description
-      while ((match = timestampRegex.exec(currentSection.description)) !== null) {
-        const hours = match[3] ? parseInt(match[1]) : 0;
-        const minutes = match[3] ? parseInt(match[2]) : parseInt(match[1]);
-        const seconds = match[3] ? parseInt(match[3]) : parseInt(match[2]);
-        const title = match[4].trim();
-        
-        // Calculate start time in seconds
-        const startTime = hours * 3600 + minutes * 60 + seconds;
-        
-        parsedSegments.push({ startTime, title });
-      }
-      
-      // Sort segments chronologically
-      parsedSegments.sort((a, b) => a.startTime - b.startTime);
-      setSegments(parsedSegments);
-    }
-  }, [currentSection?.description]);
+    setSegments(
+      parseVideoChapters(
+        currentSection?.description || '',
+        currentSection?.videoId || activeVideoId || ''
+      ).map(({ startTime, title }) => ({ startTime, title }))
+    );
+  }, [activeVideoId, currentSection?.description, currentSection?.videoId]);
   
   // Log course context for debugging
   useEffect(() => {

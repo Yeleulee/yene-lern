@@ -4,6 +4,7 @@ import { Play, Clock, CheckCircle, BookOpen, Layers, Clock3, BookmarkIcon, Gradu
 import { Video, UserVideo, LearningStatus } from '../../types';
 import Button from '../ui/Button';
 import { getCourseSectionByVideoId } from '../../data/mockCourseData';
+import { parseVideoChapters } from './videoChapters';
 
 interface VideoCardProps {
   video: Video | UserVideo;
@@ -86,27 +87,11 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, onSave, onUpdateStatus, on
   const isPartOfCourse = !!courseData;
   
   // Check if video has segments by parsing description for timestamps
-  const hasSegments = React.useMemo(() => {
-    if (!video.description) return false;
-    
-    const timestampRegex = /(?:\[)?(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\])?(?:\s?[-–—]\s?|\s)([^\r\n]+)/gm;
-    return timestampRegex.test(video.description);
-  }, [video.description]);
-  
-  // Count segments in video description
-  const segmentCount = React.useMemo(() => {
-    if (!video.description) return 0;
-    
-    const timestampRegex = /(?:\[)?(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\])?(?:\s?[-–—]\s?|\s)([^\r\n]+)/gm;
-    let count = 0;
-    let match;
-    
-    while ((match = timestampRegex.exec(video.description)) !== null) {
-      count++;
-    }
-    
-    return count;
-  }, [video.description]);
+  const segments = React.useMemo(() => {
+    return parseVideoChapters(video.description, video.id);
+  }, [video.description, video.id]);
+  const hasSegments = segments.length > 0;
+  const segmentCount = segments.length;
   
   const statusIcons = {
     'to-learn': <BookOpen size={14} />,

@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Clock, Play, CheckCircle, ArrowRight, Timer } from 'lucide-react';
+import { parseVideoChapters } from './videoChapters';
 
 interface Segment {
   id: string;
   startTime: number;
-  endTime: number;
+  endTime: number | null;
   title: string;
   completed: boolean;
 }
@@ -33,46 +34,8 @@ const VideoSegments: React.FC<VideoSegmentsProps> = ({
 
   // Parse timestamps from video description to create segments
   useEffect(() => {
-    // Common formats: 00:00, 0:00, 00:00:00, hh:mm:ss, [00:00]
-    const timestampRegex = /(?:\[)?(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\])?(?:\s?[-–—]\s?|\s)([^\r\n]+)/gm;
-    
-    const parsedSegments: Segment[] = [];
-    let match;
-    
-    const descText = description || '';
-    
-    // Find all timestamps in the description
-    while ((match = timestampRegex.exec(descText)) !== null) {
-      const hours = match[3] ? parseInt(match[1]) : 0;
-      const minutes = match[3] ? parseInt(match[2]) : parseInt(match[1]);
-      const seconds = match[3] ? parseInt(match[3]) : parseInt(match[2]);
-      const title = match[4].trim();
-      
-      // Calculate start time in seconds
-      const startTime = hours * 3600 + minutes * 60 + seconds;
-      const id = `${videoId}-segment-${startTime}`;
-      
-      parsedSegments.push({ 
-        id,
-        startTime,
-        endTime: 0, // Will set this after parsing all segments
-        title,
-        completed: false
-      });
-    }
-    
-    // Sort segments chronologically
-    parsedSegments.sort((a, b) => a.startTime - b.startTime);
-    
-    // Set end times for each segment based on the next segment's start time
-    for (let i = 0; i < parsedSegments.length; i++) {
-      if (i < parsedSegments.length - 1) {
-        parsedSegments[i].endTime = parsedSegments[i + 1].startTime - 1;
-      } else {
-        // For the last segment, use video duration or default to 10 minutes from start
-        parsedSegments[i].endTime = duration || parsedSegments[i].startTime + 600;
-      }
-    }
+    const parsedSegments = parseVideoChapters(description, videoId, duration)
+      .map(segment => ({ ...segment, completed: false }));
     
     // Load completion status from localStorage
     try {
@@ -95,7 +58,10 @@ const VideoSegments: React.FC<VideoSegmentsProps> = ({
     if (currentTime > 0 && segments.length > 0) {
       // Find which segment we're currently in
       const index = segments.findIndex(
-        segment => currentTime >= segment.startTime && currentTime < segment.endTime
+        (segment, segmentIndex) => currentTime >= segment.startTime &&
+          (segment.endTime === null ||
+            currentTime < segment.endTime ||
+            (segmentIndex === segments.length - 1 && currentTime <= segment.endTime!))
       );
       
       if (index !== -1) {
@@ -103,11 +69,11 @@ const VideoSegments: React.FC<VideoSegmentsProps> = ({
         
         // Auto-mark segment as completed when we reach 90% through it
         const segment = segments[index];
-        const segmentDuration = segment.endTime - segment.startTime;
+        const segmentDuration = segment.endTime === null ? 0 : segment.endTime - segment.startTime;
         const segmentProgress = currentTime - segment.startTime;
         const percentComplete = (segmentProgress / segmentDuration) * 100;
         
-        if (percentComplete >= 90 && !segment.completed) {
+        if (segmentDuration > 0 && percentComplete >= 90 && !segment.completed) {
           markSegmentComplete(segment.id);
         }
       }
@@ -150,9 +116,10 @@ const VideoSegments: React.FC<VideoSegmentsProps> = ({
   // Calculate segment progress percentage
   const calculateProgress = (segment: Segment): number => {
     if (currentTime < segment.startTime) return 0;
-    if (currentTime > segment.endTime) return 100;
+    if (segment.endTime !== null && currentTime > segment.endTime) return 100;
     
-    const segmentDuration = segment.endTime - segment.startTime;
+    const segmentDuration = segment.endTime === null ? 0 : segment.endTime - segment.startTime;
+    if (segmentDuration <= 0) return segment.completed ? 100 : 0;
     const progress = currentTime - segment.startTime;
     return Math.min(100, Math.max(0, (progress / segmentDuration) * 100));
   };
@@ -291,7 +258,9 @@ const VideoSegments: React.FC<VideoSegmentsProps> = ({
               <div className="flex justify-between items-center">
                 <div className="text-xs text-gray-500 flex items-center gap-1">
                   <Clock size={12} />
-                  <span>{formatTime(segment.endTime - segment.startTime)}</span>
+                  <span>
+                    {segment.endTime === null ? '—' : formatTime(segment.endTime - segment.startTime)}
+                  </span>
                 </div>
                 {segment.completed && (
                   <div className="text-xs text-green-600 font-medium animate-fade-in">

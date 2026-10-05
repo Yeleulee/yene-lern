@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Clock, CheckCircle, BarChart2, Check, X, RotateCcw } from 'lucide-react';
+import { parseVideoChapters } from './videoChapters';
 
 interface Timestamp {
   id: string;
@@ -29,38 +30,12 @@ const TimestampParser: React.FC<TimestampParserProps> = ({
   
   // Parse timestamps from video description
   useEffect(() => {
-    // Common formats: 00:00, 0:00, 00:00:00, hh:mm:ss, [00:00]
-    const timestampRegex = /(?:\[)?(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\])?(?:\s?[-–—]\s?|\s)([^\r\n]+)/gm;
-    
-    const parsedTimestamps: Timestamp[] = [];
-    let match;
-    
-    // Create a copy of the description to work with
-    const descText = description || '';
-    
-    // Find all timestamps in the description
-    while ((match = timestampRegex.exec(descText)) !== null) {
-      const hours = match[3] ? parseInt(match[1]) : 0;
-      const minutes = match[3] ? parseInt(match[2]) : parseInt(match[1]);
-      const seconds = match[3] ? parseInt(match[3]) : parseInt(match[2]);
-      const label = match[4].trim();
-      
-      // Calculate total seconds
-      const time = hours * 3600 + minutes * 60 + seconds;
-      const id = `${videoId}-${time}`;
-      
-      parsedTimestamps.push({ 
-        id,
-        time, 
-        label,
-        completed: false
-      });
-    }
-    
-    // Sort timestamps chronologically
-    parsedTimestamps.sort((a, b) => a.time - b.time);
-    
-    setTimestamps(parsedTimestamps);
+    setTimestamps(parseVideoChapters(description, videoId).map(chapter => ({
+      id: `${videoId}-${chapter.startTime}`,
+      time: chapter.startTime,
+      label: chapter.title,
+      completed: false
+    })));
   }, [description, videoId]);
   
   // Load completion status
@@ -102,15 +77,15 @@ const TimestampParser: React.FC<TimestampParserProps> = ({
       const nextTimestamp = timestamps[currentIndex + 1];
       
       if (currentTimestamp && !currentTimestamp.completed) {
-        const chapterDuration = nextTimestamp 
-          ? nextTimestamp.time - currentTimestamp.time 
-          : 300; // Default 5 minutes if last chapter
+        const chapterDuration = nextTimestamp
+          ? nextTimestamp.time - currentTimestamp.time
+          : 0;
         
         const progress = currentTime - currentTimestamp.time;
         const percentComplete = progress / chapterDuration * 100;
         
         // Mark as complete if we've watched 90% of the chapter
-        if (percentComplete >= 90) {
+        if (chapterDuration > 0 && percentComplete >= 90) {
           markChapterComplete(currentTimestamp.id);
         }
       }
@@ -282,15 +257,13 @@ const TimestampParser: React.FC<TimestampParserProps> = ({
         {timestamps.map((timestamp, index) => {
           const nextTimestamp = timestamps[index + 1];
           const isActive = activeSegment === index;
-          const duration = nextTimestamp 
-            ? nextTimestamp.time - timestamp.time
-            : 300; // Default 5 mins for last chapter
+          const duration = nextTimestamp ? nextTimestamp.time - timestamp.time : null;
           
           // Calculate chapter progress
           let progressPercent = 0;
           if (isActive && currentTime >= timestamp.time) {
             progressPercent = Math.min(
-              ((currentTime - timestamp.time) / duration) * 100,
+              duration ? ((currentTime - timestamp.time) / duration) * 100 : 0,
               100
             );
           } else if (timestamp.completed) {
@@ -331,7 +304,7 @@ const TimestampParser: React.FC<TimestampParserProps> = ({
                     
                     {/* Duration */}
                     <div className="text-xs text-gray-500 mt-1">
-                      {formatTime(duration)}
+                      {duration === null ? '—' : formatTime(duration)}
                     </div>
                   </div>
                 </button>

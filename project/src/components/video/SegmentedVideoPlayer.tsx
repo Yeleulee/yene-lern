@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   Play,
@@ -21,6 +21,7 @@ import Switch from '../ui/Switch';
 import { useLearning } from '../../context/LearningContext';
 import { useAuth } from '../../context/AuthContext';
 import { useChat } from '../../context/ChatContext';
+import { parseVideoChapters } from './videoChapters';
 
 interface SegmentedVideoPlayerProps {
   videoId: string;
@@ -49,15 +50,15 @@ const SegmentedVideoPlayer: React.FC<SegmentedVideoPlayerProps> = ({
   const [chatInput, setChatInput] = useState('');
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<VideoPlayerHandle>(null);
+  const currentTimeRef = useRef(0);
+  const pendingSeekSegmentId = useRef<string | null>(null);
 
-  const [segments, setSegments] = useState<Array<{
-    id: string;
-    startTime: number;
-    endTime: number;
-    title: string;
-  }>>([]);
-
+  const segments = useMemo(
+    () => parseVideoChapters(description, videoId, duration, true),
+    [description, duration, videoId]
+  );
   const [completedSegments, setCompletedSegments] = useState<Record<string, boolean>>({});
+  const completedSegmentsRef = useRef(completedSegments);
 
   // Filter messages for this video
   const videoMessages = messages.filter(m => m.context === videoId || (!m.context && m.id === '1'));
@@ -86,119 +87,104 @@ const SegmentedVideoPlayer: React.FC<SegmentedVideoPlayerProps> = ({
 
   // Initial load from UserVideo state if available
   useEffect(() => {
-    if (userVideo?.completedSegmentIds) {
-      const completions: Record<string, boolean> = {};
-      userVideo.completedSegmentIds.forEach(id => {
-        completions[id] = true;
-      });
-      setCompletedSegments(completions);
-    }
-  }, [userVideo]);
+    const completions: Record<string, boolean> = {};
+    userVideo?.completedSegmentIds?.forEach(id => {
+      completions[id] = true;
+    });
+    completedSegmentsRef.current = completions;
+    setCompletedSegments(completions);
+  }, [videoId, userVideo?.completedSegmentIds]);
 
   // Load last watched time on mount
   const hasResumed = useRef(false);
   useEffect(() => {
-    if (userVideo?.currentTimestamp && !hasResumed.current && playerRef.current) {
-      playerRef.current.seekTo(userVideo.currentTimestamp);
-      hasResumed.current = true;
-    }
-  }, [userVideo, isSidebarOpen]);
+    if (!userVideo?.currentTimestamp || hasResumed.current) return;
 
-  // Parse video description for timestamps to create segments
-  useEffect(() => {
-    if (description) {
-      const timestampRegex = /(?:\[)?(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\])?(?:\s?[-–—]\s?|\s)([^\r\n]+)/gm;
-      const parsedSegments: Array<{
-        id: string;
-        startTime: number;
-        endTime: number;
-        title: string;
-      }> = [];
-      let match;
-
-      while ((match = timestampRegex.exec(description)) !== null) {
-        const hours = match[3] ? parseInt(match[1]) : 0;
-        const minutes = match[3] ? parseInt(match[2]) : parseInt(match[1]);
-        const seconds = match[3] ? parseInt(match[3]) : parseInt(match[2]);
-        const title = match[4].trim();
-
-        const startTime = hours * 3600 + minutes * 60 + seconds;
-        const id = `${videoId}-segment-${startTime}`;
-
-        parsedSegments.push({
-          id,
-          startTime,
-          endTime: 0,
-          title
-        });
+    let attempts = 0;
+    const interval = window.setInterval(() => {
+      attempts += 1;
+      playerRef.current?.seekTo(userVideo.currentTimestamp!);
+      if (
+        Math.abs(currentTimeRef.current - userVideo.currentTimestamp!) < 2 ||
+        attempts >= 10
+      ) {
+        hasResumed.current = true;
+        window.clearInterval(interval);
       }
+    }, 500);
 
-      parsedSegments.sort((a, b) => a.startTime - b.startTime);
-
-      for (let i = 0; i < parsedSegments.length; i++) {
-        if (i < parsedSegments.length - 1) {
-          parsedSegments[i].endTime = parsedSegments[i + 1].startTime;
-        } else {
-          parsedSegments[i].endTime = duration || parsedSegments[i].startTime + 600;
-        }
-      }
-
-      setSegments(parsedSegments);
-    }
-  }, [videoId, description, duration]);
+    return () => window.clearInterval(interval);
+  }, [userVideo?.currentTimestamp, videoId]);
 
   // Throttle saving to database
   const lastSavedTime = useRef(0);
-  const saveToDb = async (time: number, completions: Record<string, boolean>) => {
-    if (!user) return;
+  const persistProgress = useCallback(async (time: number, completions: Record<string, boolean>) => {
+    if (!user || !userVideo || segments.length === 0) return;
+    const completedIds = segments.filter(segment => completions[segment.id]).map(segment => segment.id);
+    const progress = Math.round((completedIds.length / segments.length) * 100);
+    await saveProgress(videoId, progress, time, completedIds);
+  }, [saveProgress, segments, user, userVideo, videoId]);
+
+  const saveToDb = useCallback((time: number, completions: Record<string, boolean>) => {
+    if (!user || !userVideo) return;
     const now = Date.now();
     if (now - lastSavedTime.current < 5000) return; // Save every 5s max
 
     lastSavedTime.current = now;
-    const completedIds = Object.keys(completions).filter(id => completions[id]);
-    const progress = segments.length > 0 ? (completedIds.length / segments.length) * 100 : 0;
+    void persistProgress(time, completions);
+  }, [persistProgress, user, userVideo]);
 
-    await saveProgress(videoId, progress, time, completedIds);
-  };
+  const markSegmentComplete = useCallback((segmentId: string, time = currentTime) => {
+    if (completedSegmentsRef.current[segmentId]) return;
+    const next = { ...completedSegmentsRef.current, [segmentId]: true };
+    completedSegmentsRef.current = next;
+    setCompletedSegments(next);
+    void persistProgress(time, next);
+  }, [currentTime, persistProgress]);
 
-  const handleTimeUpdate = (time: number, dur: number) => {
+  const handleTimeUpdate = useCallback((time: number, dur: number) => {
+    currentTimeRef.current = time;
     setCurrentTime(time);
-    if (dur !== duration) setDuration(dur);
+    if (Number.isFinite(dur) && dur > 0 && dur !== duration) setDuration(dur);
 
-    if (segments.length > 0) {
-      const currentSegment = segments.find(
-        segment => time >= segment.startTime && time < segment.endTime
-      );
+    const segmentIndex = segments.findIndex((segment, index) =>
+      time >= segment.startTime &&
+      (segment.endTime === null ||
+        time < segment.endTime ||
+        (index === segments.length - 1 && time <= segment.endTime))
+    );
+    const currentSegment = segments[segmentIndex];
 
-      if (currentSegment && activeSegmentId !== currentSegment.id) {
-        setActiveSegmentId(currentSegment.id);
-      }
+    const segmentChanged = !!currentSegment && currentSegment.id !== activeSegmentId;
+    const seekingToSelectedSegment = currentSegment?.id === pendingSeekSegmentId.current;
+    if (
+      segmentChanged &&
+      activeSegmentId &&
+      !playAll &&
+      !seekingToSelectedSegment &&
+      playerRef.current?.isPlaying()
+    ) {
+      playerRef.current.pause();
+    }
+    if (seekingToSelectedSegment) pendingSeekSegmentId.current = null;
 
-      // Auto-mark segment as completed when reaching 95% through it
-      if (currentSegment && !completedSegments[currentSegment.id]) {
-        const segDuration = currentSegment.endTime - currentSegment.startTime;
-        const progress = time - currentSegment.startTime;
-        if (progress / segDuration >= 0.95) {
-          markSegmentComplete(currentSegment.id);
-        }
+    if (currentSegment?.id !== activeSegmentId) {
+      setActiveSegmentId(currentSegment?.id ?? null);
+    }
+
+    if (currentSegment?.endTime !== null && currentSegment?.endTime !== undefined) {
+      const segmentDuration = currentSegment.endTime - currentSegment.startTime;
+      if (segmentDuration > 0 && (time - currentSegment.startTime) / segmentDuration >= 0.95) {
+        markSegmentComplete(currentSegment.id, time);
       }
     }
 
     saveToDb(time, completedSegments);
-  };
-
-  const markSegmentComplete = (segmentId: string) => {
-    setCompletedSegments(prev => {
-      if (prev[segmentId]) return prev;
-      const next = { ...prev, [segmentId]: true };
-      const completedIds = Object.keys(next).filter(id => next[id]);
-      const progress = segments.length > 0 ? (completedIds.length / segments.length) * 100 : 0;
-      saveProgress(videoId, progress, currentTime, completedIds);
-      return next;
-    });
-  };
+  }, [activeSegmentId, completedSegments, duration, markSegmentComplete, playAll, saveToDb, segments]);
 
   const handleSegmentClick = (startTime: number) => {
+    pendingSeekSegmentId.current =
+      segments.find(segment => segment.startTime === startTime)?.id ?? null;
     playerRef.current?.seekTo(startTime);
   };
 
@@ -210,13 +196,20 @@ const SegmentedVideoPlayer: React.FC<SegmentedVideoPlayerProps> = ({
     }
   };
 
-  const onVideoEnded = () => {
-    if (playAll) {
-      goToNextSegment();
-    }
-  };
+  const onVideoEnded = useCallback(() => {
+    const lastSegment = segments[segments.length - 1];
+    if (lastSegment) markSegmentComplete(lastSegment.id, duration || currentTime);
+  }, [currentTime, duration, markSegmentComplete, segments]);
 
-  const getProgressCount = () => Object.values(completedSegments).filter(Boolean).length;
+  const getProgressCount = () => segments.filter(segment => completedSegments[segment.id]).length;
+  const formatTime = (time: number) => {
+    const hours = Math.floor(time / 3600);
+    const minutes = Math.floor((time % 3600) / 60);
+    const seconds = Math.floor(time % 60);
+    return hours > 0
+      ? `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+      : `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  };
   const getProgressPercentage = () => {
     if (segments.length === 0) return 0;
     return Math.round((getProgressCount() / segments.length) * 100);
@@ -330,6 +323,7 @@ const SegmentedVideoPlayer: React.FC<SegmentedVideoPlayerProps> = ({
                     <button
                       key={segment.id}
                       onClick={() => handleSegmentClick(segment.startTime)}
+                      aria-label={`Play ${segment.title} from ${formatTime(segment.startTime)}`}
                       className={`w-full group flex items-start gap-4 p-4 text-left border-b border-gray-50 transition-all ${isActive ? 'bg-indigo-50/70 border-l-4 border-l-indigo-600' : 'bg-white hover:bg-gray-50 border-l-4 border-l-transparent'
                         }`}
                     >
@@ -347,6 +341,7 @@ const SegmentedVideoPlayer: React.FC<SegmentedVideoPlayerProps> = ({
                           }`}>
                           {segment.title}
                         </h4>
+                        <span className="text-xs text-gray-500">{formatTime(segment.startTime)}</span>
                       </div>
 
                       <div className="shrink-0">
